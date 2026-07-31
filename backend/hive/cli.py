@@ -77,6 +77,100 @@ def show(
         typer.echo(f"{summary.id[:48]:<48} {price:>9}  {context:>9}  {roles}")
 
 
+@app.command("run")
+def run(
+    goal: str = typer.Option("", "--goal", "-g", help="Aufgabenstellung für den Agenten"),
+    model: str = typer.Option("", "--model", "-m", help="Modell-ID aus dem Katalog"),
+    provider_kind: str = typer.Option(
+        "openrouter", "--provider", help="openrouter | mock (aufgezeichneter Beispiellauf)"
+    ),
+    network: str = typer.Option(
+        "", "--network", help="none | bridge — bridge erlaubt Paketinstallation"
+    ),
+    max_iterations: int = typer.Option(20, help="Iterationslimit"),
+    max_usd: float = typer.Option(5.0, help="Kostenobergrenze in USD (Notbremse)"),
+    read_only: bool = typer.Option(False, "--read-only", help="Nur lesende Werkzeuge (Scout)"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Jedes Ereignis ausgeben"),
+) -> None:
+    """Einen Agenten in einer Docker-Sandbox auf ein Ziel ansetzen."""
+    from decimal import Decimal
+
+    from .demo import DEMO_GOAL, build_demo_provider
+    from .harness.budget import BudgetLimits
+    from .harness.providers.base import Provider, ProviderError
+    from .harness.providers.openrouter import OpenRouterProvider
+    from .harness.runner import RunConfig, execute_run
+    from .sandbox.docker_sandbox import SandboxError, SandboxLimits
+
+    settings = get_settings()
+    provider: Provider
+
+    if provider_kind == "mock":
+        demo = build_demo_provider()
+        provider = demo
+        model = model or demo.model_id
+        goal = goal or DEMO_GOAL
+    else:
+        if not model:
+            typer.secho("--model wird gebraucht", fg=typer.colors.RED, err=True)
+            raise typer.Exit(2)
+        if not goal:
+            typer.secho("--goal wird gebraucht", fg=typer.colors.RED, err=True)
+            raise typer.Exit(2)
+        try:
+            provider = OpenRouterProvider(model, api_key=settings.openrouter_api_key)
+        except ProviderError as exc:
+            typer.secho(str(exc), fg=typer.colors.RED, err=True)
+            raise typer.Exit(2) from exc
+
+    chosen_network = network or settings.sandbox_network
+    config = RunConfig(
+        model_id=model,
+        goal=goal,
+        budget=BudgetLimits(max_iterations=max_iterations, max_cost_usd=Decimal(str(max_usd))),
+        sandbox=SandboxLimits(
+            image=settings.sandbox_image,
+            memory_mb=settings.sandbox_memory_mb,
+            cpus=settings.sandbox_cpus,
+            network="bridge" if chosen_network == "bridge" else "none",
+        ),
+        read_only=read_only,
+    )
+
+    typer.echo(f"Modell   : {model}")
+    typer.echo(f"Netzwerk : {config.sandbox.network}")
+    typer.echo(f"Ziel     : {goal}\n")
+
+    try:
+        outcome = asyncio.run(execute_run(config, provider=provider, catalog=_service()))
+    except SandboxError as exc:
+        typer.secho(f"Sandbox: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
+
+    if verbose:
+        for event in outcome.events:
+            typer.echo(f"  [{event.sequence:>3}] {event.type.value}  {event.payload}")
+        typer.echo("")
+
+    result = outcome.result
+    colour = typer.colors.GREEN if result.succeeded else typer.colors.YELLOW
+    typer.secho(f"Ende: {result.stop_reason.value} — {result.detail}", fg=colour)
+    if result.budget:
+        typer.echo(f"Verbrauch: {result.budget.format()}")
+    if not outcome.pricing_known and provider_kind != "mock":
+        typer.secho(
+            "Hinweis: Für dieses Modell sind keine Katalogpreise bekannt — "
+            "die Kostenangabe ist deshalb nicht belastbar.",
+            fg=typer.colors.YELLOW,
+        )
+    if outcome.workspace:
+        typer.echo(f"\nArbeitsbereich:\n{outcome.workspace}")
+    if result.final_message:
+        typer.echo(f"\nAntwort:\n{result.final_message}")
+
+    raise typer.Exit(0 if result.succeeded else 1)
+
+
 @app.command("openapi")
 def openapi(out: str = typer.Option("../openapi.json", help="Zieldatei")) -> None:
     """OpenAPI-Schema exportieren.

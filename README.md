@@ -14,13 +14,34 @@ Der vollständige Plan mit Methodik und Meilensteinen steht in [PLAN.md](PLAN.md
 
 ---
 
-## Stand: M0 — Modellkatalog
+## Stand
 
-Erledigt ist der Katalog: OpenRouter-Sync, Ableitung der Schwarm-Rollentauglichkeit und ein
-Dashboard mit Filtern. **Läuft ohne API-Key** — der Modell-Endpunkt von OpenRouter ist öffentlich,
-und ein Katalogstand liegt dem Repo bei.
+| Meilenstein | Inhalt | Status |
+|---|---|---|
+| **M0** | Modellkatalog: OpenRouter-Sync, Rollenableitung, Dashboard mit Filtern | fertig |
+| **M1** | Harness: Agent-Loop, Werkzeug-Registry, Budget, Provider, Docker-Sandbox | fertig |
+| M2 | Task-Templates und automatische Checks | offen |
+| M3–M9 | Journal, Sweeps, Schwarm-Engine, Bewertung — siehe [PLAN.md](PLAN.md) | offen |
 
-Die Schwarm-Engine (M5) und der Benchmark (M4/M7) folgen; siehe Meilensteine im Plan.
+**Ohne API-Key nutzbar:** Der Modell-Endpunkt von OpenRouter ist öffentlich, ein Katalogstand
+liegt dem Repo bei, und der Beispiellauf nutzt einen aufgezeichneten Mock-Provider.
+
+## Der Harness in Aktion
+
+```bash
+make demo
+```
+
+Spielt einen vollständigen Agentenlauf ab: echter Docker-Container, echte Dateien, echte
+Befehle — nur der Modellaufruf ist aufgezeichnet. Der Lauf enthält bewusst einen
+halluzinierten Werkzeugnamen, um zu zeigen, dass daraus eine Rückmeldung wird statt eines
+Absturzes.
+
+Mit eigenem Key gegen ein echtes Modell:
+
+```bash
+HIVE_OPENROUTER_API_KEY=sk-or-... backend/.venv/Scripts/python -m hive.cli run --model anthropic/claude-haiku-4.5 --goal "Baue eine Zähler-Seite" --network bridge
+```
 
 ## Schnellstart
 
@@ -89,6 +110,41 @@ damals verweisen können, und ältere Snapshots bleiben mit später ergänzten F
 `make types` aus dem OpenAPI-Schema von FastAPI. Bei getrenntem Python/TS-Stack ist
 Schema-Drift das Standardproblem — CI prüft, dass sich das Schema reproduzierbar erzeugen lässt.
 
+**Werkzeugfehler sind Rückmeldung, kein Absturz.** Ein halluzinierter Werkzeugname liefert dem
+Modell die Liste der verfügbaren Werkzeuge, ungültige Argumente liefern den Validierungsfehler,
+kaputtes JSON in den Argumenten wird zu leeren Argumenten. Nur so übersteht der Loop schwache
+Modelle — und die sollen im Schwarm gerade die Mehrheit stellen. Eine Reißleine nach fünf
+Iterationen ohne einen einzigen erfolgreichen Werkzeugaufruf verhindert, dass sich ein Modell
+im selben Fehler festbeißt.
+
+**Der Agent-Loop ist die Kontrollvariable.** Jedes Modell und später jede Schwarm-Rolle läuft
+durch exakt denselben Code. Werkzeuge laufen bewusst sequenziell: Sie teilen sich einen
+Dateibaum, und paralleles Schreiben würde Ergebnisse von der Aufrufreihenfolge abhängig machen.
+
+**Budgets sind harte Grenzen.** Iterationen, Tokens, Laufzeit und Kosten werden durchgesetzt,
+nicht empfohlen. Für Modell-gegen-Modell wird über Iterationen und Tokens gedeckelt — ein
+Dollar-Deckel gäbe billigen Modellen mehr Versuche. Erst beim Vergleich Schwarm gegen Solo
+ist Dollar-Parität die richtige Kontrollvariable.
+
+## Sandbox
+
+Modelle schreiben und **führen** Code aus, deshalb ist die Isolation Pflicht:
+
+- ein Container pro Lauf, Nutzer ohne Root, `cap_drop: ALL`, `no-new-privileges`
+- keine Host-Mounts — der Arbeitsbereich verlässt den Container nur durch ausdrückliches Lesen
+- Grenzen für Speicher, CPU, Prozesse und Laufzeit je Befehl (`timeout` läuft *im* Container
+  und beendet den Prozess wirklich)
+- gekappte Werkzeugausgaben, damit ein Build-Log nicht das Kontextfenster sprengt
+- Pfadnormalisierung mit `PurePosixPath`: `Path.resolve()` würde auf einem Windows-Host gegen
+  das Host-Dateisystem auflösen und den Ausbruchsschutz aushebeln
+
+Diese Zusagen werden getestet, nicht behauptet — `tests/test_sandbox.py` prüft Nutzer, Netzwerk,
+Rechteausweitung, Zeitlimit und Ausgabekappung im echten Container.
+
+**Bekannte Lücke:** Das Netzwerk ist derzeit nur ganz an (`bridge`) oder ganz aus (`none`,
+Voreinstellung). Der im Plan vorgesehene Egress-Proxy mit Allowlist für Paketregistries fehlt
+noch und muss vor dem Einsatz mit fremdem Code kommen.
+
 ## Entwicklung
 
 ```bash
@@ -96,14 +152,18 @@ make check
 ```
 
 Führt Lint, Typecheck und Tests für beide Seiten aus: `ruff`, `mypy --strict`, `pytest`
-(33 Tests), `tsc --noEmit`, `vitest`. Die Backend-Tests laufen **ohne Netz** — HTTP wird mit
-`respx` abgefangen, der Katalog kommt aus der Fixture.
+(92 Tests), `tsc --noEmit`, `vitest`. Die Backend-Tests laufen **ohne Netz und ohne Key** —
+HTTP wird mit `respx` abgefangen, der Katalog kommt aus der Fixture. Die Sandbox-Tests
+überspringen sich selbst, wenn kein Docker-Daemon erreichbar ist.
 
 ```
 backend/hive/
   catalog/     OpenRouter-Sync, Fähigkeitsableitung, Snapshots, Filterung
+  harness/     Agent-Loop, Werkzeug-Registry, Budget, Ereignisse, Provider
+  sandbox/     Docker-Container, Werkzeuge auf dem Arbeitsbereich
   api/         FastAPI: REST-Endpunkte
-  cli.py       hive catalog sync | show, hive openapi
+  cli.py       hive catalog sync | show, hive run, hive openapi
+docker/        Sandbox-Image
 frontend/src/
   api/         Client und Typen
   features/catalog/   Kachelraster, Filter, Detailpanel

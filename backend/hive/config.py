@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     catalog_source: str = "https://openrouter.ai/api/v1/models"
     catalog_timeout_seconds: float = 30.0
 
+    # Nur zum Durchreichen an OpenRouter. Wird nie persistiert; die öffentliche Demo
+    # läuft über aufgezeichnete Läufe statt über echte Aufrufe.
+    openrouter_api_key: str = ""
+
+    sandbox_image: str = "hive/node-web:1"
+    sandbox_memory_mb: int = 2048
+    sandbox_cpus: float = 2.0
+    # Voreinstellung "none": Der Egress-Proxy mit Allowlist fehlt noch (siehe PLAN.md).
+    # Wer Pakete installieren lässt, schaltet bewusst auf "bridge".
+    sandbox_network: str = "none"
+
     # CORS für den Vite-Dev-Server. Im Produktivbetrieb liefert FastAPI das Frontend
     # statisch aus, dann ist die Liste leer.
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
