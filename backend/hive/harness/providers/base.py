@@ -1,9 +1,8 @@
-"""Provider-Abstraktion.
+"""Provider abstraction.
 
-Schmal gehalten: Ein Provider bekommt Nachrichten und Werkzeugschemata und liefert eine
-``Completion``. Alles Weitere — Schleife, Budget, Werkzeugausführung — gehört dem Harness.
-Diese Trennung ist die Voraussetzung dafür, dass der Harness beim Benchmark die
-Kontrollvariable bleibt und nur das Modell wechselt.
+Kept narrow: a provider receives messages plus tool schemas and returns a ``Completion``.
+Everything else — the loop, the budget, tool execution — belongs to the harness. That split is
+the precondition for the harness staying the control variable while only the model changes.
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ from ..messages import Completion, Message
 
 
 class ProviderError(RuntimeError):
-    """Der Modellaufruf ist endgültig fehlgeschlagen."""
+    """The model call failed for good."""
 
 
 class Provider(Protocol):

@@ -17,9 +17,9 @@ def make_model(
     vision: bool = False,
     context_length: int | None = 128_000,
     created: int | None = 1_700_000_000,
-    description: str = "Ein Testmodell.",
+    description: str = "A test model.",
 ) -> OpenRouterModel:
-    """Baut ein Modell in der Form, wie OpenRouter es ausliefert."""
+    """Build a model in the shape OpenRouter delivers."""
     supported: list[str] = ["temperature", "max_tokens"]
     if tools:
         supported += ["tools", "tool_choice"]

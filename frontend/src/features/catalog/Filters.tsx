@@ -11,18 +11,18 @@ interface Props {
 const ROLES: Role[] = ["scout", "worker", "inspector", "queen"];
 
 const ROLE_HINTS: Record<Role, string> = {
-  scout: "Erkundung — braucht keine Werkzeuge, plant in Text",
-  worker: "Ausarbeitung — braucht Tool-Calling",
-  inspector: "Prüfung — braucht Bildverständnis",
-  queen: "Synthese — braucht Tool-Calling",
+  scout: "Exploration — needs no tools, plans in text",
+  worker: "Elaboration — needs tool calling",
+  inspector: "Verification — needs image understanding",
+  queen: "Synthesis — needs tool calling",
 };
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: "name", label: "Name" },
-  { value: "price_asc", label: "Preis aufsteigend" },
-  { value: "price_desc", label: "Preis absteigend" },
-  { value: "context_desc", label: "Kontext absteigend" },
-  { value: "newest", label: "Neueste zuerst" },
+  { value: "price_asc", label: "Price ascending" },
+  { value: "price_desc", label: "Price descending" },
+  { value: "context_desc", label: "Context descending" },
+  { value: "newest", label: "Newest first" },
 ];
 
 export function Filters({ query, providers, onChange, onReset }: Props) {
@@ -30,20 +30,20 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
     <aside className="filters">
       <div className="filters__group">
         <label className="filters__label" htmlFor="search">
-          Suche
+          Search
         </label>
         <input
           id="search"
           type="search"
           className="input"
-          placeholder="Name, ID oder Beschreibung"
+          placeholder="Name, id or description"
           value={query.search ?? ""}
           onChange={(e) => onChange({ search: e.target.value || undefined })}
         />
       </div>
 
       <div className="filters__group">
-        <span className="filters__label">Rolle im Schwarm</span>
+        <span className="filters__label">Role in the swarm</span>
         <div className="chips">
           {ROLES.map((role) => (
             <button
@@ -60,14 +60,14 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
       </div>
 
       <div className="filters__group">
-        <span className="filters__label">Fähigkeiten</span>
+        <span className="filters__label">Capabilities</span>
         <label className="check">
           <input
             type="checkbox"
             checked={query.supports_tools === true}
             onChange={(e) => onChange({ supports_tools: e.target.checked || undefined })}
           />
-          Tool-Calling
+          Tool calling
         </label>
         <label className="check">
           <input
@@ -75,7 +75,7 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
             checked={query.supports_vision === true}
             onChange={(e) => onChange({ supports_vision: e.target.checked || undefined })}
           />
-          Bildverständnis
+          Image understanding
         </label>
         <label className="check">
           <input
@@ -83,13 +83,13 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
             checked={query.free_only === true}
             onChange={(e) => onChange({ free_only: e.target.checked || undefined })}
           />
-          nur kostenlose
+          Free only
         </label>
       </div>
 
       <div className="filters__group">
         <label className="filters__label" htmlFor="maxprice">
-          Mischpreis höchstens <span className="filters__unit">$/MTok</span>
+          Blended price at most <span className="filters__unit">$/MTok</span>
         </label>
         <input
           id="maxprice"
@@ -97,7 +97,7 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
           className="input"
           min={0}
           step={0.25}
-          placeholder="ohne Grenze"
+          placeholder="no limit"
           value={query.max_blended_usd_per_mtok ?? ""}
           onChange={(e) =>
             onChange({
@@ -106,14 +106,14 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
           }
         />
         <p className="filters__hint">
-          Mischpreis = 3:1 gewichtet aus Ein- und Ausgabe. Modelle ohne bekannten Preis
-          fallen aus diesem Filter heraus.
+          Blended price = 3:1 weighting of input and output. Models without a known price drop
+          out of this filter.
         </p>
       </div>
 
       <div className="filters__group">
         <label className="filters__label" htmlFor="mincontext">
-          Kontext mindestens
+          Context at least
         </label>
         <select
           id="mincontext"
@@ -123,7 +123,7 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
             onChange({ min_context_length: e.target.value ? Number(e.target.value) : undefined })
           }
         >
-          <option value="">beliebig</option>
+          <option value="">any</option>
           <option value={32_000}>32K</option>
           <option value={128_000}>128K</option>
           <option value={256_000}>256K</option>
@@ -133,7 +133,7 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
 
       <div className="filters__group">
         <label className="filters__label" htmlFor="provider">
-          Anbieter
+          Provider
         </label>
         <select
           id="provider"
@@ -141,7 +141,7 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
           value={query.provider ?? ""}
           onChange={(e) => onChange({ provider: e.target.value || undefined })}
         >
-          <option value="">alle</option>
+          <option value="">all</option>
           {providers.map((facet) => (
             <option key={facet.provider} value={facet.provider}>
               {facet.provider} ({facet.count})
@@ -152,7 +152,7 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
 
       <div className="filters__group">
         <label className="filters__label" htmlFor="sort">
-          Sortierung
+          Sorting
         </label>
         <select
           id="sort"
@@ -169,7 +169,7 @@ export function Filters({ query, providers, onChange, onReset }: Props) {
       </div>
 
       <button type="button" className="button button--ghost" onClick={onReset}>
-        Filter zurücksetzen
+        Reset filters
       </button>
     </aside>
   );

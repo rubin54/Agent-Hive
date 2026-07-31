@@ -1,10 +1,9 @@
 /**
- * Handgepflegte Spiegelung der API-Typen für M0.
+ * Hand-maintained mirror of the API types for M0.
  *
- * Ab M3 werden diese Typen per `make types` aus dem OpenAPI-Schema von FastAPI
- * generiert (`openapi-typescript`) und diese Datei wird zum reinen Re-Export.
- * Pydantic bleibt die einzige Schema-Quelle — hier wird nichts erfunden, was
- * das Backend nicht ausliefert.
+ * From M3 these types are generated from FastAPI's OpenAPI schema via `make types`
+ * (`openapi-typescript`) and this file becomes a pure re-export. Pydantic stays the single
+ * schema source — nothing is invented here that the backend does not serve.
  */
 
 export type Role = "scout" | "worker" | "inspector" | "queen";

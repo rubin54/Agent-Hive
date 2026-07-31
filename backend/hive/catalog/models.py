@@ -1,13 +1,12 @@
-"""Pydantic-Modelle für den OpenRouter-Modellkatalog.
+"""Pydantic models for the OpenRouter model catalog.
 
-Die Feldnamen folgen der Live-Antwort von ``GET https://openrouter.ai/api/v1/models``.
-Alles ist bewusst tolerant modelliert: OpenRouter ergänzt regelmäßig Felder und liefert je
-nach Modell unterschiedliche Teilmengen. ``extra="ignore"`` sorgt dafür, dass ein neues Feld
-den Sync nicht bricht.
+Field names follow the live response of ``GET https://openrouter.ai/api/v1/models``.
+Everything is modelled leniently on purpose: OpenRouter adds fields regularly and returns
+different subsets per model. ``extra="ignore"`` keeps a new field from breaking the sync.
 
-Preise sind ``Decimal``. Sie kommen als Strings wie ``"0.00000014"`` und werden intern nie
-als ``float`` gerechnet — bei Beträgen dieser Größenordnung summieren sich Binärfehler über
-zehntausende Aufrufe zu sichtbaren Abweichungen.
+Prices are ``Decimal``. They arrive as strings like ``"0.00000014"`` and are never computed
+as ``float`` internally — at that magnitude, binary rounding errors accumulate into visible
+drift across tens of thousands of calls.
 """
 
 from __future__ import annotations
@@ -19,18 +18,17 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 TOKENS_PER_MTOK = Decimal(1_000_000)
 
-# Gewichtung für den Mischpreis. 3:1 Input zu Output ist die übliche Konvention für
-# Vergleichstabellen und entspricht grob dem Verhältnis in agentischen Läufen, wo lange
-# Kontexte auf kurze Tool-Calls treffen.
+# Weighting for the blended price. A 3:1 input-to-output ratio is the usual convention for
+# comparison tables and roughly matches agentic runs, where long contexts meet short tool calls.
 BLEND_PROMPT_WEIGHT = Decimal("0.75")
 BLEND_COMPLETION_WEIGHT = Decimal("0.25")
 
 
 def _to_decimal(value: Any) -> Decimal | None:
-    """Wandelt einen OpenRouter-Preiswert in ``Decimal``.
+    """Convert an OpenRouter price value into ``Decimal``.
 
-    Unbekannte oder negative Preise (OpenRouter nutzt ``"-1"`` für variable Tarife) ergeben
-    ``None`` — das ist ehrlicher als eine erfundene Null und wird im UI sichtbar gemacht.
+    Unknown or negative prices (OpenRouter uses ``"-1"`` for variable rates) yield ``None`` —
+    more honest than an invented zero, and surfaced in the UI.
     """
     if value is None or isinstance(value, bool):
         return None
@@ -68,7 +66,7 @@ class Pricing(BaseModel):
 
     @property
     def blended_per_mtok(self) -> Decimal | None:
-        """Mischpreis pro Million Token bei 3:1 Input/Output."""
+        """Blended price per million tokens at a 3:1 input/output ratio."""
         if self.prompt is None or self.completion is None:
             return None
         blended = self.prompt * BLEND_PROMPT_WEIGHT + self.completion * BLEND_COMPLETION_WEIGHT
@@ -108,7 +106,7 @@ class ReasoningInfo(BaseModel):
 
 
 class OpenRouterModel(BaseModel):
-    """Ein Modell, wie OpenRouter es ausliefert — unverändert übernommen."""
+    """A model exactly as OpenRouter delivers it."""
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
@@ -137,7 +135,7 @@ class OpenRouterModel(BaseModel):
 
     @property
     def provider(self) -> str:
-        """Der Anbieter-Präfix, z. B. ``anthropic`` aus ``anthropic/claude-sonnet``."""
+        """The provider prefix, e.g. ``anthropic`` from ``anthropic/claude-sonnet``."""
         return self.id.split("/", 1)[0] if "/" in self.id else self.id
 
     @property

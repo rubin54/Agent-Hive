@@ -1,7 +1,7 @@
-"""Nachrichten- und Antworttypen des Agent-Loops.
+"""Message and response types of the agent loop.
 
-Bewusst provider-neutral gehalten: OpenRouter spricht das OpenAI-Format, aber der Harness
-soll nicht daran kleben. Die Umwandlung passiert ausschließlich im jeweiligen Provider.
+Deliberately provider-neutral: OpenRouter speaks the OpenAI format, but the harness must not
+be welded to it. Conversion happens exclusively inside each provider.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class Role(StrEnum):
 
 
 class ToolCall(BaseModel):
-    """Ein vom Modell angeforderter Werkzeugaufruf."""
+    """A tool invocation requested by the model."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -36,7 +36,7 @@ class Message(BaseModel):
     role: Role
     content: str | None = None
     tool_calls: list[ToolCall] = Field(default_factory=list)
-    # Nur bei role=TOOL: verweist auf die ToolCall.id, die beantwortet wird.
+    # Only for role=TOOL: points at the ToolCall.id being answered.
     tool_call_id: str | None = None
 
     @classmethod
@@ -57,7 +57,7 @@ class Message(BaseModel):
 
 
 class Usage(BaseModel):
-    """Tokenverbrauch eines einzelnen Modellaufrufs."""
+    """Token consumption of a single model call."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -86,7 +86,7 @@ class FinishReason(StrEnum):
 
 
 class Completion(BaseModel):
-    """Antwort eines Modellaufrufs, providerunabhängig."""
+    """Result of a model call, provider-independent."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -94,6 +94,6 @@ class Completion(BaseModel):
     usage: Usage = Usage()
     finish_reason: FinishReason = FinishReason.STOP
     model_id: str = ""
-    # Vom Provider gemeldete Kosten, falls verfügbar. OpenRouter liefert diese Angabe
-    # nicht im Chat-Response, deshalb rechnet der Harness normalerweise selbst.
+    # Cost reported by the provider, if available. OpenRouter does not include it in the
+    # chat response by default, so the harness normally computes its own.
     reported_cost_usd: Decimal | None = None

@@ -1,4 +1,4 @@
-"""Der Agent-Loop — die Kontrollvariable des Benchmarks."""
+"""The agent loop — the control variable of the benchmark."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ CALLS: list[str] = []
 
 
 async def note(text: str) -> str:
-    """Merkt sich einen Text."""
+    """Remember a piece of text."""
     CALLS.append(text)
-    return f"notiert: {text}"
+    return f"noted: {text}"
 
 
 def build(script: list[object], **limits: object) -> tuple[Agent, MemorySink, MockProvider]:
@@ -41,20 +41,20 @@ def build(script: list[object], **limits: object) -> tuple[Agent, MemorySink, Mo
 
 
 async def test_loop_runs_tools_then_finishes() -> None:
-    agent, sink, _ = build([call("note", {"text": "eins"}), say("fertig")])
-    result = await agent.run("Ziel")
+    agent, sink, _ = build([call("note", {"text": "one"}), say("done")])
+    result = await agent.run("Goal")
 
     assert result.succeeded
-    assert result.final_message == "fertig"
-    assert CALLS == ["eins"]
+    assert result.final_message == "done"
+    assert CALLS == ["one"]
     assert sink.events[0].type is EventType.RUN_STARTED
     assert sink.events[-1].type is EventType.RUN_FINISHED
 
 
 async def test_conversation_shape_is_correct() -> None:
-    """Auf jeden Tool-Call muss genau eine TOOL-Nachricht mit passender ID folgen."""
-    agent, _, _ = build([call("note", {"text": "x"}), say("fertig")])
-    result = await agent.run("Ziel")
+    """Every tool call must be followed by exactly one TOOL message with a matching id."""
+    agent, _, _ = build([call("note", {"text": "x"}), say("done")])
+    result = await agent.run("Goal")
 
     roles = [m.role for m in result.messages]
     assert roles[0] is Role.SYSTEM
@@ -67,8 +67,8 @@ async def test_conversation_shape_is_correct() -> None:
 
 
 async def test_parallel_tool_calls_are_all_answered() -> None:
-    agent, _, _ = build([calls([("note", {"text": "a"}), ("note", {"text": "b"})]), say("fertig")])
-    result = await agent.run("Ziel")
+    agent, _, _ = build([calls([("note", {"text": "a"}), ("note", {"text": "b"})]), say("done")])
+    result = await agent.run("Goal")
 
     assert CALLS == ["a", "b"]
     tool_messages = [m for m in result.messages if m.role is Role.TOOL]
@@ -76,47 +76,47 @@ async def test_parallel_tool_calls_are_all_answered() -> None:
 
 
 async def test_budget_stops_the_loop() -> None:
-    # Das Skript würde ewig weiterlaufen; nur das Limit beendet es.
+    # The script would run forever; only the limit ends it.
     agent, sink, provider = build([call("note", {"text": "x"})] * 10, max_iterations=3)
-    result = await agent.run("Ziel")
+    result = await agent.run("Goal")
 
     assert result.stop_reason is StopReason.BUDGET
-    assert "Iterationslimit" in result.detail
+    assert "Iteration limit" in result.detail
     assert provider.calls_made == 3
     assert sink.events[-1].payload["reason"] == "budget"
 
 
 async def test_repeated_tool_failures_abort_the_run() -> None:
-    """Ohne diese Reißleine verbeißt sich ein schwaches Modell im selben Fehler."""
-    agent, _, _ = build([call("gibtsnicht", {})] * 20)
-    result = await agent.run("Ziel")
+    """Without this rip cord a weak model gets stuck on the same error."""
+    agent, _, _ = build([call("nonexistent", {})] * 20)
+    result = await agent.run("Goal")
 
     assert result.stop_reason is StopReason.TOOL_ERROR_LIMIT
     assert str(MAX_CONSECUTIVE_TOOL_FAILURES) in result.detail
 
 
 async def test_a_single_success_resets_the_failure_counter() -> None:
-    script = [call("gibtsnicht", {})] * 4 + [call("note", {"text": "ok"})]
-    script += [call("gibtsnicht", {})] * 4 + [say("fertig")]
+    script = [call("nonexistent", {})] * 4 + [call("note", {"text": "ok"})]
+    script += [call("nonexistent", {})] * 4 + [say("done")]
     agent, _, _ = build(script)
-    result = await agent.run("Ziel")
+    result = await agent.run("Goal")
 
     assert result.succeeded
     assert CALLS == ["ok"]
 
 
 async def test_provider_error_ends_run_without_raising() -> None:
-    # Ein leeres Skript lässt den Mock beim ersten Aufruf scheitern.
+    # An empty script makes the mock fail on the very first call.
     agent, sink, _ = build([])
-    result = await agent.run("Ziel")
+    result = await agent.run("Goal")
 
     assert result.stop_reason is StopReason.PROVIDER_ERROR
     assert sink.events[-1].type is EventType.RUN_FINISHED
 
 
 async def test_events_cover_every_transition() -> None:
-    agent, sink, _ = build([call("note", {"text": "x"}), say("fertig")])
-    await agent.run("Ziel")
+    agent, sink, _ = build([call("note", {"text": "x"}), say("done")])
+    await agent.run("Goal")
 
     types = [e.type for e in sink.events]
     for expected in (
@@ -130,18 +130,18 @@ async def test_events_cover_every_transition() -> None:
     ):
         assert expected in types
 
-    # Fortlaufend und lückenlos — ab M3 trägt genau diese Folge Replay und Journal.
+    # Consecutive and gapless — from M3 this exact sequence carries replay and the journal.
     assert [e.sequence for e in sink.events] == list(range(len(sink.events)))
 
 
 async def test_large_tool_output_is_truncated_in_events() -> None:
-    """Ereignisse dürfen nicht durch Build-Logs aufgebläht werden."""
+    """Events must not be inflated by build logs."""
 
     async def spew(size: int) -> str:
-        """Erzeugt viel Text."""
+        """Produce a lot of text."""
         return "x" * size
 
-    provider = MockProvider([call("spew", {"size": 50_000}), say("fertig")])
+    provider = MockProvider([call("spew", {"size": 50_000}), say("done")])
     sink = MemorySink()
     agent = Agent(
         provider=provider,
@@ -149,12 +149,12 @@ async def test_large_tool_output_is_truncated_in_events() -> None:
         budget=BudgetTracker(limits=BudgetLimits(max_tokens=None, max_cost_usd=None)),
         sink=sink,
     )
-    result = await agent.run("Ziel")
+    result = await agent.run("Goal")
 
     event = sink.of_type(EventType.TOOL_RETURNED)[0]
     assert len(event.payload["result"]) < 2_200
 
-    # Das Modell bekommt den vollständigen Text — gekürzt wird nur die Aufzeichnung.
+    # The model receives the full text — only the recording is shortened.
     tool_message = next(m for m in result.messages if m.role is Role.TOOL)
     assert tool_message.content is not None
     assert len(tool_message.content) == 50_000
@@ -163,7 +163,7 @@ async def test_large_tool_output_is_truncated_in_events() -> None:
 async def test_cost_is_tracked_per_call() -> None:
     from hive.catalog.models import Pricing
 
-    provider = MockProvider([say("fertig", prompt_tokens=1000, completion_tokens=500)])
+    provider = MockProvider([say("done", prompt_tokens=1000, completion_tokens=500)])
     sink = MemorySink()
     agent = Agent(
         provider=provider,
@@ -174,7 +174,7 @@ async def test_cost_is_tracked_per_call() -> None:
         ),
         sink=sink,
     )
-    result = await agent.run("Ziel")
+    result = await agent.run("Goal")
 
     assert result.cost_usd == Decimal("0.002")  # 1000*1e-6 + 500*2e-6
     assert sink.of_type(EventType.MODEL_RESPONDED)[0].payload["cost_usd"] == "0.002000"

@@ -1,9 +1,9 @@
-"""Ereignisse des Agent-Loops.
+"""Events of the agent loop.
 
-Jeder Zustandsübergang ist ein Ereignis. In M1 landen sie nur in einer Senke im Speicher
-bzw. auf der Konsole — ab M3 schreibt dieselbe Senke ins Journal, speist den WebSocket-Stream
-und trägt Replay und Kostenrechnung. Deshalb entstehen sie schon jetzt vollständig und
-serialisierbar, statt später nachgerüstet zu werden.
+Every state transition is an event. In M1 they only land in an in-memory sink or on the
+console — from M3 the same sink writes to the journal, feeds the WebSocket stream and carries
+replay and cost accounting. That is why they are created complete and serialisable now rather
+than being retrofitted later.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ class StopReason(StrEnum):
 
 
 class Event(BaseModel):
-    """Basis aller Ereignisse. ``sequence`` wird von der Senke vergeben."""
+    """Base of all events. ``sequence`` is assigned by the sink."""
 
     type: EventType
     sequence: int = 0
@@ -48,7 +48,7 @@ class EventSink(Protocol):
 
 
 class MemorySink:
-    """Sammelt Ereignisse im Speicher — Grundlage für Tests und die CLI-Ausgabe."""
+    """Collects events in memory — the basis for tests and CLI output."""
 
     def __init__(self, run_id: str = "") -> None:
         self.run_id = run_id
@@ -63,7 +63,7 @@ class MemorySink:
         return [e for e in self.events if e.type is event_type]
 
 
-# ------------------------------------------------------------------ Konstruktoren
+# ------------------------------------------------------------------ constructors
 
 
 def run_started(*, model_id: str, goal: str, tools: list[str]) -> Event:
@@ -112,9 +112,9 @@ def tool_called(*, iteration: int, call: ToolCall) -> Event:
 
 
 def tool_returned(*, iteration: int, name: str, ok: bool, result: str) -> Event:
-    # Werkzeugausgaben können sehr groß werden (Verzeichnislisten, Build-Logs). Das Ereignis
-    # trägt eine gekürzte Fassung; der vollständige Text geht als Nachricht an das Modell.
-    preview = result if len(result) <= 2000 else result[:2000] + f"… [{len(result)} Zeichen]"
+    # Tool output can get very large (directory listings, build logs). The event carries a
+    # shortened form; the full text still goes to the model as a message.
+    preview = result if len(result) <= 2000 else result[:2000] + f"… [{len(result)} chars]"
     return Event(
         type=EventType.TOOL_RETURNED,
         payload={"iteration": iteration, "name": name, "ok": ok, "result": preview},

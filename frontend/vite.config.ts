@@ -2,8 +2,8 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => {
-  // loadEnv statt process.env: So wirken Einstellungen aus .env.local auch in dieser
-  // Datei. Beide Werte sind überschreibbar, falls die Standardports lokal belegt sind.
+  // loadEnv rather than process.env: settings from .env.local take effect in this file
+  // too. Both values are overridable in case the default ports are taken locally.
   const env = loadEnv(mode, process.cwd(), "");
   const apiTarget = env.VITE_API_TARGET || "http://127.0.0.1:8000";
   const port = Number(env.PORT) || 5173;
@@ -12,9 +12,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port,
-      // Das Frontend spricht immer relative /api-Pfade. Im Dev-Betrieb leitet Vite sie
-      // an FastAPI weiter, im Produktivbetrieb liefert FastAPI beides von derselben
-      // Herkunft aus — dadurch gibt es keine Basis-URL, die konfiguriert werden müsste.
+      // The frontend always speaks relative /api paths. In development Vite proxies them
+      // to FastAPI; in production FastAPI serves both from the same origin — so there is no
+      // base URL that needs configuring.
       proxy: {
         "/api": {
           target: apiTarget,

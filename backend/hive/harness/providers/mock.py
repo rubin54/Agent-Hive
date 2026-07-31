@@ -1,11 +1,10 @@
-"""Deterministischer Mock-Provider.
+"""Deterministic mock provider.
 
-Grundlage für Tests, CI und die schlüsselfertige Demo: Der Harness lässt sich damit
-vollständig durchspielen — echte Sandbox, echte Werkzeuge, echte Dateien — ohne einen
-einzigen API-Aufruf. Ohne dieses Stück wäre weder eine Regressionsprüfung noch ein
-`make demo` ohne Key möglich.
+The foundation for tests, CI and a turnkey demo: the harness can be exercised completely —
+real sandbox, real tools, real files — without a single API call. Without this piece there
+would be no regression check and no ``make demo`` without a key.
 
-Ab M9 kommt daneben ein Replay-Provider, der aufgezeichnete echte Läufe abspielt.
+From M9 a replay provider joins it, playing back recorded real runs.
 """
 
 from __future__ import annotations
@@ -16,13 +15,13 @@ from typing import Any
 from ..messages import Completion, FinishReason, Message, ToolCall, Usage
 from .base import ProviderError
 
-# Ein Skript kann statt fester Antworten auch eine Funktion sein, die auf den bisherigen
-# Verlauf reagiert — damit lassen sich Nachbesserungsschleifen nachstellen.
+# Instead of fixed answers a script step can be a function reacting to the conversation so
+# far — that makes correction loops expressible.
 ScriptStep = Completion | Callable[[list[Message]], Completion]
 
 
 def say(content: str, *, prompt_tokens: int = 100, completion_tokens: int = 20) -> Completion:
-    """Abschließende Textantwort."""
+    """A final text answer."""
     return Completion(
         message=Message.assistant(content),
         usage=Usage(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
@@ -38,7 +37,7 @@ def call(
     prompt_tokens: int = 100,
     completion_tokens: int = 30,
 ) -> Completion:
-    """Einzelner Werkzeugaufruf."""
+    """A single tool call."""
     return Completion(
         message=Message.assistant(
             None,
@@ -55,7 +54,7 @@ def calls(
     prompt_tokens: int = 100,
     completion_tokens: int = 40,
 ) -> Completion:
-    """Mehrere Werkzeuge in einer Antwort — bildet parallele Tool-Calls ab."""
+    """Several tools in one response — models parallel tool calls."""
     tool_calls = [
         ToolCall(id=f"call_{index}_{name}", name=name, arguments=arguments)
         for index, (name, arguments) in enumerate(requested)
@@ -68,7 +67,7 @@ def calls(
 
 
 class MockProvider:
-    """Spielt ein festes Skript ab. Jeder Aufruf verbraucht einen Schritt."""
+    """Plays back a fixed script. Every call consumes one step."""
 
     def __init__(self, script: Sequence[ScriptStep], *, model_id: str = "mock/scripted") -> None:
         self.model_id = model_id
@@ -92,11 +91,11 @@ class MockProvider:
         self.received.append(list(messages))
 
         if self._index >= len(self._script):
-            # Ein erschöpftes Skript ist ein Testfehler, kein Modellverhalten — deshalb
-            # laut scheitern statt still eine leere Antwort zu liefern.
+            # An exhausted script is a test error, not model behaviour — so fail loudly
+            # instead of silently returning an empty answer.
             raise ProviderError(
-                f"Mock-Skript erschöpft nach {self._index} Aufrufen — "
-                "der Loop hat mehr Iterationen gebraucht als vorgesehen"
+                f"Mock script exhausted after {self._index} calls — "
+                "the loop needed more iterations than scripted"
             )
 
         step = self._script[self._index]

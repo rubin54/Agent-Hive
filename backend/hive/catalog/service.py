@@ -1,4 +1,4 @@
-"""Katalog-Service: bindet Abruf, Ablage und Fallback zusammen."""
+"""Catalog service: ties together fetching, storage and fallback."""
 
 from __future__ import annotations
 
@@ -21,15 +21,15 @@ class CatalogState:
 
 
 class CatalogUnavailableError(RuntimeError):
-    """Weder Snapshot noch Fixture vorhanden."""
+    """Neither a snapshot nor the bundled fixture is available."""
 
 
 class CatalogService:
-    """Liefert den aktuellen Katalogstand und stößt Synchronisierungen an.
+    """Serves the current catalog state and triggers synchronisations.
 
-    Die Ladereihenfolge ist bewusst: neuester Snapshot vor mitgelieferter Fixture. So arbeitet
-    eine frisch geklonte Installation sofort mit echten Daten, während ein synchronisiertes
-    System immer den aktuellen Stand nutzt.
+    The load order is deliberate: newest snapshot before bundled fixture. A freshly cloned
+    installation works immediately with real data, while a synced system always uses the
+    current state.
     """
 
     def __init__(self, store: CatalogStore, *, fixture_path: Path, source: str) -> None:
@@ -54,8 +54,8 @@ class CatalogService:
                 return self._cache
 
         raise CatalogUnavailableError(
-            "Kein Katalog verfügbar. Einmal 'hive catalog sync' ausführen — "
-            "der OpenRouter-Endpunkt ist öffentlich und braucht keinen API-Key."
+            "No catalog available. Run 'hive catalog sync' once — the OpenRouter endpoint "
+            "is public and needs no API key."
         )
 
     def snapshot_ids(self) -> list[str]:

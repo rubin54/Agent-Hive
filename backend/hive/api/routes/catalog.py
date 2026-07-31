@@ -1,4 +1,4 @@
-"""Katalog-Endpunkte für das Dashboard."""
+"""Catalog endpoints for the dashboard."""
 
 from __future__ import annotations
 
@@ -37,10 +37,10 @@ class SnapshotInfo(BaseModel):
 
 
 class CatalogStatus(BaseModel):
-    """Woher die aktuell ausgelieferten Daten stammen.
+    """Where the data currently being served comes from.
 
-    ``is_fixture=True`` heißt: noch nie synchronisiert, es läuft der mitgelieferte Stand.
-    Das Dashboard weist darauf hin, statt veraltete Preise als aktuell auszugeben.
+    ``is_fixture=True`` means: never synced, running on the bundled state. The dashboard
+    points that out instead of presenting stale prices as current.
     """
 
     snapshot_id: str

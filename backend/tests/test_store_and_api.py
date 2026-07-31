@@ -1,4 +1,4 @@
-"""Snapshot-Ablage und HTTP-Schnittstelle."""
+"""Snapshot storage and the HTTP interface."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from .conftest import make_model
 MODELS_URL = "https://openrouter.ai/api/v1/models"
 
 
-# ----------------------------------------------------------------------- Store
+# ----------------------------------------------------------------------- store
 
 
 def test_snapshots_are_immutable_and_ordered(tmp_path: Path) -> None:
@@ -44,8 +44,8 @@ def test_snapshots_are_immutable_and_ordered(tmp_path: Path) -> None:
 
     assert store.list_snapshot_ids() == [newer.snapshot_id, older.snapshot_id]
 
-    # Der alte Stand bleibt unverändert erhalten — sonst wären ältere Ergebnisse
-    # nicht mehr auf ihren Preisstand zurückführbar.
+    # The old state survives unchanged — otherwise older results could no longer be traced
+    # back to the prices they were produced under.
     revived = store.load(older.snapshot_id)
     assert revived is not None
     assert revived.model_count == 1
@@ -55,25 +55,25 @@ def test_snapshots_are_immutable_and_ordered(tmp_path: Path) -> None:
 
 def test_partial_write_leaves_no_usable_snapshot(tmp_path: Path) -> None:
     store = CatalogStore(tmp_path)
-    (tmp_path / "snapshot-20260101T000000Z.partial").write_text("{ kaputt", encoding="utf-8")
+    (tmp_path / "snapshot-20260101T000000Z.partial").write_text("{ broken", encoding="utf-8")
     assert store.list_snapshot_ids() == []
 
 
 def test_corrupt_snapshot_is_ignored(tmp_path: Path) -> None:
-    (tmp_path / "snapshot-20260101T000000Z.json").write_text("nicht json", encoding="utf-8")
+    (tmp_path / "snapshot-20260101T000000Z.json").write_text("not json", encoding="utf-8")
     assert CatalogStore(tmp_path).load("20260101T000000Z") is None
 
 
 def test_snapshot_keeps_raw_payload(tmp_path: Path) -> None:
-    """Rohdaten überleben, damit alte Snapshots später mit neuen Feldern auswertbar bleiben."""
+    """Raw data survives so old snapshots stay analysable when new fields appear."""
     store = CatalogStore(tmp_path)
-    raw = [{"id": "a/one", "name": "one", "zukuenftiges_feld": 42}]
+    raw = [{"id": "a/one", "name": "one", "future_field": 42}]
     snapshot = store.save([make_model("a/one")], raw, source=MODELS_URL)
     stored = json.loads((tmp_path / f"snapshot-{snapshot.snapshot_id}.json").read_text("utf-8"))
-    assert stored["models"][0]["zukuenftiges_feld"] == 42
+    assert stored["models"][0]["future_field"] == 42
 
 
-# ---------------------------------------------------------------------- Client
+# ---------------------------------------------------------------------- client
 
 
 @respx.mock
@@ -81,7 +81,7 @@ async def test_fetch_skips_broken_entries_without_failing() -> None:
     respx.get(MODELS_URL).mock(
         return_value=httpx.Response(
             200,
-            json={"data": [{"id": "a/one", "name": "One"}, {"kein": "id"}, "quatsch"]},
+            json={"data": [{"id": "a/one", "name": "One"}, {"no": "id"}, "nonsense"]},
         )
     )
     models, raw = await fetch_models(url=MODELS_URL)
@@ -98,19 +98,19 @@ async def test_fetch_raises_on_http_error() -> None:
 
 @respx.mock
 async def test_fetch_raises_when_nothing_parsable() -> None:
-    respx.get(MODELS_URL).mock(return_value=httpx.Response(200, json={"data": [{"kein": "id"}]}))
+    respx.get(MODELS_URL).mock(return_value=httpx.Response(200, json={"data": [{"no": "id"}]}))
     with pytest.raises(CatalogFetchError):
         await fetch_models(url=MODELS_URL)
 
 
-# --------------------------------------------------------------------- Service
+# --------------------------------------------------------------------- service
 
 
 def _service(tmp_path: Path, fixture: list[OpenRouterModel] | None = None) -> CatalogService:
     fixture_path = tmp_path / "fixture.json"
     if fixture is not None:
-        # mode="json": Der Store speichert die unveränderte JSON-Nutzlast von OpenRouter.
-        # Ein roher model_dump() enthielte Decimal-Objekte und wäre nicht serialisierbar.
+        # mode="json": the store keeps OpenRouter's untouched JSON payload. A raw
+        # model_dump() would contain Decimal objects and not be serialisable.
         CatalogStore(tmp_path / "fx").save(
             fixture, [m.model_dump(mode="json") for m in fixture], source="fixture"
         )
@@ -164,10 +164,9 @@ def client(tmp_path: Path) -> TestClient:
         ],
     )
 
-    # Kein monkeypatch auf das Modulattribut: Die Routen halten seit dem Import eine
-    # Referenz auf das Original, dependency_overrides muss genau dieses Objekt als
-    # Schlüssel bekommen — sonst greift der Override still nicht und der Test liefe
-    # gegen den echten Katalog.
+    # No monkeypatch on the module attribute: the routes hold a reference to the original
+    # from import time, so dependency_overrides needs exactly that object as the key —
+    # otherwise the override silently misses and the test would run against the real catalog.
     app = create_app()
     app.dependency_overrides[get_catalog_service] = lambda: service
     return TestClient(app)
@@ -196,7 +195,7 @@ def test_list_models_filters_and_paginates(client: TestClient) -> None:
 
 
 def test_ineligible_reason_is_exposed_not_hidden(client: TestClient) -> None:
-    """Modelle ohne Tool-Calling verschwinden nicht — sie tragen eine Begründung."""
+    """Models without tool calling do not disappear — they carry a reason."""
     body = client.get("/api/catalog/models", params={"search": "plain"}).json()
     assert body["items"][0]["ineligible_reason"] is not None
     assert body["items"][0]["roles"] == ["scout"]
@@ -209,4 +208,4 @@ def test_providers_facet(client: TestClient) -> None:
 
 def test_invalid_query_is_rejected(client: TestClient) -> None:
     assert client.get("/api/catalog/models", params={"limit": 9999}).status_code == 422
-    assert client.get("/api/catalog/models", params={"role": "koenigin"}).status_code == 422
+    assert client.get("/api/catalog/models", params={"role": "empress"}).status_code == 422

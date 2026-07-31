@@ -1,12 +1,12 @@
-"""Budget-Durchsetzung.
+"""Budget enforcement.
 
-Harte Grenze, nicht Empfehlung: Ist ein Limit erreicht, endet der Lauf. Ohne das verbrennt
-ein zielgetriebener Loop beliebig viel Geld, und genau daran scheitern die meisten
-Eigenbau-Harnesse sichtbar.
+A hard boundary, not a suggestion: once a limit is reached, the run ends. Without it a
+goal-driven loop burns arbitrary amounts of money — and that is exactly where most home-grown
+harnesses fail visibly.
 
-Kosten werden ausschließlich in ``Decimal`` gerechnet. Bei Preisen um 1e-7 pro Token summieren
-sich float-Binärfehler über zehntausende Aufrufe zu sichtbaren Abweichungen — und die
-Kostenachse ist in diesem Projekt eine Messgröße, kein Nebenwert.
+Costs are computed exclusively in ``Decimal``. At prices around 1e-7 per token, float rounding
+errors accumulate into visible drift across tens of thousands of calls — and in this project
+the cost axis is a measurement, not an afterthought.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ class LimitKind(StrEnum):
 
 
 class BudgetExceeded(Exception):
-    """Ein hartes Limit wurde erreicht."""
+    """A hard limit was reached."""
 
     def __init__(self, kind: LimitKind, detail: str) -> None:
         super().__init__(detail)
@@ -38,12 +38,12 @@ class BudgetExceeded(Exception):
 
 @dataclass(frozen=True, slots=True)
 class BudgetLimits:
-    """Obergrenzen eines Laufs.
+    """Upper bounds of a run.
 
-    ``max_cost_usd`` ist bewusst die Notbremse und nicht die Vergleichsgröße: Für
-    Modell-gegen-Modell wird über Iterationen und Tokens gedeckelt, damit ein billiges
-    Modell nicht einfach mehr Versuche bekommt. Erst beim Vergleich Schwarm gegen Solo
-    (ab M5) ist Dollar-Parität die richtige Kontrollvariable.
+    ``max_cost_usd`` is deliberately the emergency brake and not the comparison variable:
+    model-versus-model is capped by iterations and tokens so a cheap model does not simply
+    get more attempts. Only when comparing swarm against solo (from M5) is dollar parity the
+    right control variable.
     """
 
     max_iterations: int = 20
@@ -61,7 +61,7 @@ class BudgetSnapshot:
 
     def format(self) -> str:
         return (
-            f"{self.iterations} Iterationen · {self.usage.total_tokens:,} Token · "
+            f"{self.iterations} iterations · {self.usage.total_tokens:,} tokens · "
             f"${self.cost_usd:.4f} · {self.elapsed_seconds:.1f}s"
         )
 
@@ -88,39 +88,39 @@ class BudgetTracker:
         )
 
     def cost_of(self, usage: Usage) -> Decimal:
-        """Kosten eines Aufrufs aus den Katalogpreisen.
+        """Cost of one call derived from catalog prices.
 
-        Ohne bekannte Preise bleibt die Kostenachse bei null — das ist ehrlicher als eine
-        geschätzte Zahl, und der Katalog markiert solche Modelle bereits als preislos.
+        Without known prices the cost axis stays at zero — more honest than an estimate, and
+        the catalog already marks such models as price-less.
         """
         if self.pricing is None:
             return Decimal(0)
         prompt_price = self.pricing.prompt or Decimal(0)
         completion_price = self.pricing.completion or Decimal(0)
-        # Reasoning-Token werden von den Anbietern wie Ausgabe-Token abgerechnet.
+        # Providers bill reasoning tokens like output tokens.
         completion_tokens = usage.completion_tokens + usage.reasoning_tokens
         return prompt_price * usage.prompt_tokens + completion_price * completion_tokens
 
     def record(self, usage: Usage, *, reported_cost_usd: Decimal | None = None) -> Decimal:
-        """Verbucht einen Modellaufruf und gibt dessen Kosten zurück."""
+        """Book a model call and return its cost."""
         self.usage = self.usage + usage
-        # Meldet der Provider echte Kosten, gewinnen diese gegen die eigene Rechnung —
-        # sie berücksichtigen Rabatte und Cache-Treffer, die der Katalogpreis nicht kennt.
+        # When the provider reports real cost, that wins over our own arithmetic — it
+        # accounts for discounts and cache hits the catalog price knows nothing about.
         cost = reported_cost_usd if reported_cost_usd is not None else self.cost_of(usage)
         self.cost_usd += cost
         return cost
 
     def start_iteration(self) -> None:
-        """Prüft alle Limits und zählt die Iteration hoch. Wirft bei Überschreitung."""
+        """Check every limit and count the iteration. Raises when exceeded."""
         if self.iterations >= self.limits.max_iterations:
             raise BudgetExceeded(
                 LimitKind.ITERATIONS,
-                f"Iterationslimit erreicht ({self.limits.max_iterations})",
+                f"Iteration limit reached ({self.limits.max_iterations})",
             )
         if self.limits.max_tokens is not None and self.usage.total_tokens >= self.limits.max_tokens:
             raise BudgetExceeded(
                 LimitKind.TOKENS,
-                f"Tokenlimit erreicht ({self.usage.total_tokens:,} / {self.limits.max_tokens:,})",
+                f"Token limit reached ({self.usage.total_tokens:,} / {self.limits.max_tokens:,})",
             )
         if (
             self.limits.max_wall_clock_seconds is not None
@@ -128,12 +128,12 @@ class BudgetTracker:
         ):
             raise BudgetExceeded(
                 LimitKind.WALL_CLOCK,
-                f"Zeitlimit erreicht ({self.elapsed_seconds:.0f}s)",
+                f"Time limit reached ({self.elapsed_seconds:.0f}s)",
             )
         if self.limits.max_cost_usd is not None and self.cost_usd >= self.limits.max_cost_usd:
             raise BudgetExceeded(
                 LimitKind.COST,
-                f"Kostenlimit erreicht (${self.cost_usd:.4f} / ${self.limits.max_cost_usd})",
+                f"Cost limit reached (${self.cost_usd:.4f} / ${self.limits.max_cost_usd})",
             )
         self.iterations += 1
 
@@ -141,7 +141,7 @@ class BudgetTracker:
 def estimate_cost(
     pricing: Pricing, *, prompt_tokens: int, completion_tokens: int
 ) -> Decimal | None:
-    """Vorabschätzung für die Sweep-Kostenvorschau (ab M4)."""
+    """Up-front estimate for the sweep cost preview (from M4)."""
     if pricing.prompt is None or pricing.completion is None:
         return None
     return pricing.prompt * prompt_tokens + pricing.completion * completion_tokens

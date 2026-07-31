@@ -1,4 +1,4 @@
-.PHONY: help install dev backend frontend sync demo image test lint typecheck check types clean
+.PHONY: help install dev backend frontend sync demo demo-checks templates image test lint typecheck check types clean
 
 PY := backend/.venv/Scripts/python.exe
 ifeq ($(OS),)
@@ -8,14 +8,16 @@ endif
 API_PORT ?= 8000
 
 help:
-	@echo "install    Abhängigkeiten für Backend und Frontend einrichten"
-	@echo "backend    FastAPI starten (API_PORT=$(API_PORT))"
-	@echo "frontend   Vite-Dev-Server starten"
-	@echo "sync       Modellkatalog von OpenRouter holen (kein API-Key nötig)"
-	@echo "demo       Aufgezeichneten Agentenlauf in echter Sandbox abspielen"
-	@echo "image      Sandbox-Image bauen (passiert sonst beim ersten Lauf)"
-	@echo "check      Lint, Typecheck und Tests für beide Seiten"
-	@echo "types      TypeScript-Typen aus dem OpenAPI-Schema generieren"
+	@echo "install      Set up dependencies for backend and frontend"
+	@echo "backend      Start FastAPI (API_PORT=$(API_PORT))"
+	@echo "frontend     Start the Vite dev server"
+	@echo "sync         Fetch the model catalog from OpenRouter (no API key needed)"
+	@echo "demo         Replay a recorded agent run in a real sandbox"
+	@echo "demo-checks  Show the full evaluation chain on minecraft-clone"
+	@echo "templates    List the available task templates"
+	@echo "image        Build the sandbox and checker images (otherwise done on first run)"
+	@echo "check        Lint, typecheck and tests for both sides"
+	@echo "types        Generate the TypeScript types from the OpenAPI schema"
 
 install:
 	python -m venv backend/.venv
@@ -32,13 +34,20 @@ frontend:
 sync:
 	cd backend && .venv/Scripts/python -m hive.cli catalog sync
 
-# Braucht Docker, aber keinen API-Key: Der Mock-Provider ersetzt nur den Modellaufruf,
-# Sandbox, Werkzeuge und Loop sind dieselben wie im Echtbetrieb.
+# Needs Docker but no API key: the mock provider replaces only the model call, while
+# sandbox, tools and loop are the same as in live operation.
 demo:
 	cd backend && .venv/Scripts/python -m hive.cli run --provider mock -v
 
+demo-checks:
+	cd backend && .venv/Scripts/python -m hive.cli run --template minecraft-clone --provider mock
+
+templates:
+	cd backend && .venv/Scripts/python -m hive.cli template list
+
 image:
 	docker build -f docker/node-web.Dockerfile -t hive/node-web:1 docker
+	docker build -f docker/playwright-checker.Dockerfile -t hive/playwright-checker:1 docker
 
 test:
 	cd backend && .venv/Scripts/python -m pytest -q

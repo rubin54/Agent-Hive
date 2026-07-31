@@ -1,7 +1,7 @@
-"""FastAPI-Anwendung.
+"""FastAPI application.
 
-Das OpenAPI-Schema dieser App ist die einzige Schema-Quelle: Die TypeScript-Typen des
-Frontends werden daraus generiert (``make types``) und nie von Hand gepflegt.
+This app's OpenAPI schema is the single schema source: the frontend's TypeScript types are
+generated from it (``make types``) and never hand-maintained.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Agent Hive",
         version="0.1.0",
-        summary="Heterogener Agenten-Schwarm mit Benchmark gegen Einzelmodelle",
+        summary="Heterogeneous agent swarm benchmarked against single models",
     )
 
     if settings.cors_origins:

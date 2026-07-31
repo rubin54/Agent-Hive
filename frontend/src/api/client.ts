@@ -15,13 +15,13 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, init);
   if (!response.ok) {
-    // FastAPI legt die Ursache nach `detail`; ohne das bekäme der Nutzer nur "500".
+    // FastAPI puts the cause in `detail`; without it the user would only see "500".
     let detail = response.statusText;
     try {
       const body = (await response.json()) as { detail?: unknown };
       if (typeof body.detail === "string") detail = body.detail;
     } catch {
-      /* Antwort war kein JSON — dann bleibt es beim Statustext. */
+      /* Response was not JSON — fall back to the status text. */
     }
     throw new ApiError(detail, response.status);
   }
@@ -31,8 +31,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 function toSearchParams(query: CatalogQuery): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    // Leere Filter dürfen nicht als "" mitgeschickt werden — das Backend
-    // würde sie sonst als gesetzten (leeren) Filter behandeln.
+    // Empty filters must not be sent as "" — the backend would otherwise treat them as
+    // a set (empty) filter.
     if (value === undefined || value === null || value === "") continue;
     params.set(key, String(value));
   }

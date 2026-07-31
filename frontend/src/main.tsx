@@ -8,8 +8,8 @@ import "./styles.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Der Katalog ändert sich nur beim expliziten Sync — kein Grund für Refetches
-      // beim Fensterwechsel.
+      // The catalog only changes on an explicit sync — no reason to refetch on window
+      // focus.
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000,
       retry: 1,
@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
 });
 
 const container = document.getElementById("root");
-if (!container) throw new Error("#root fehlt im index.html");
+if (!container) throw new Error("#root is missing from index.html");
 
 createRoot(container).render(
   <StrictMode>

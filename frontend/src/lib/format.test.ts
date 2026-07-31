@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import { formatContext, formatPricePerMTok } from "./format";
 
 describe("formatPricePerMTok", () => {
-  it("unterscheidet unbekannt von gratis", () => {
-    // Diese Unterscheidung darf nie verwischen: ein Modell mit variablem Tarif
-    // als "gratis" anzuzeigen würde jede Kostenschätzung unterlaufen.
-    expect(formatPricePerMTok(null)).toBe("unbekannt");
-    expect(formatPricePerMTok(0)).toBe("gratis");
+  it("distinguishes unknown from free", () => {
+    // This distinction must never blur: showing a model on a variable rate as "free" would
+    // undermine every cost estimate.
+    expect(formatPricePerMTok(null)).toBe("unknown");
+    expect(formatPricePerMTok(0)).toBe("free");
   });
 
-  it("zeigt bei sehr kleinen Preisen genug Nachkommastellen", () => {
+  it("keeps enough decimals for very small prices", () => {
     expect(formatPricePerMTok(0.0014)).toBe("$0.0014");
     expect(formatPricePerMTok(0.14)).toBe("$0.140");
     expect(formatPricePerMTok(15)).toBe("$15.00");
@@ -18,7 +18,7 @@ describe("formatPricePerMTok", () => {
 });
 
 describe("formatContext", () => {
-  it("kürzt große Kontextfenster lesbar", () => {
+  it("shortens large context windows readably", () => {
     expect(formatContext(null)).toBe("—");
     expect(formatContext(512)).toBe("512");
     expect(formatContext(128_000)).toBe("128K");

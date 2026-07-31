@@ -1,0 +1,56 @@
+version: 1
+
+prompt: >
+  Build a counter page. A static server (serve.js) already exists and you do not need to
+  change it.
+
+  Requirements:
+  - index.html with the heading "Counter", a readout and two buttons
+  - The button with id="increment" increases the value by 1, the one with id="reset" sets it
+    back to 0
+  - The readout has id="value" and always shows the current count
+  - The logic lives in counter.js, loaded from index.html
+  - No framework, no package installation — plain HTML and JavaScript
+
+success_criteria:
+  - "index.html and counter.js exist"
+  - "The counter reacts to both buttons in the browser"
+
+workspace:
+  starter_dir: starter
+  # internal: the checker container reaches the application, the application not the internet.
+  network: internal
+
+budget:
+  max_iterations: 20
+  max_tokens: 200000
+  max_cost_usd: "1.00"
+
+checks:
+  - kind: command
+    name: files-present
+    command: "test -f index.html && test -f counter.js && echo PRESENT"
+
+  - kind: command
+    name: syntax
+    command: "node --check counter.js"
+
+  - kind: serve
+    name: serve
+    command: "node serve.js"
+    port: 5173
+    ready_timeout_seconds: 30
+
+  - kind: playwright
+    name: behaviour
+    spec: checks/counter.spec.ts
+    port: 5173
+    screenshots: 2
+
+rubric:
+  - id: function
+    weight: 3
+    question: "Does the page visibly count up and reset?"
+  - id: craft
+    weight: 1
+    question: "Does the implementation look carefully made?"

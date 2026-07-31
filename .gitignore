@@ -13,20 +13,20 @@ node_modules/
 dist/
 .vite/
 
-# Lokale Konfiguration
+# Local configuration
 .env
 .env.local
 .env.*.local
 
-# Katalog-Snapshots: laufzeitgeneriert. Der mitgelieferte Demo-Stand liegt
-# stattdessen unter backend/hive/catalog/fixture.json und ist versioniert.
+# Catalog snapshots: generated at runtime. The bundled demo state lives in
+# backend/hive/catalog/fixture.json instead and is versioned.
 data/
 
-# Generiert
+# Generated
 openapi.json
 frontend/src/api/schema.d.ts
 
-# Werkzeuge
+# Tooling
 .DS_Store
 Thumbs.db
 .idea/

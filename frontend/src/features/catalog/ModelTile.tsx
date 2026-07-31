@@ -8,8 +8,8 @@ interface Props {
 }
 
 export function ModelTile({ model, selected, onSelect }: Props) {
-  // Modelle ohne Tool-Calling werden gedämpft dargestellt, aber nicht ausgeblendet:
-  // Wer wissen will, warum ein Modell für einen Schwarmlauf ausfällt, soll es sehen.
+  // Models without tool calling are dimmed rather than hidden: anyone wondering why a model
+  // is unavailable for a swarm run should be able to see it.
   const limited = model.ineligible_reason !== null;
 
   return (
@@ -21,7 +21,7 @@ export function ModelTile({ model, selected, onSelect }: Props) {
     >
       <header className="tile__head">
         <span className="tile__provider">{model.provider}</span>
-        {model.is_free && <span className="badge badge--free">gratis</span>}
+        {model.is_free && <span className="badge badge--free">free</span>}
       </header>
 
       <h3 className="tile__name" title={model.id}>
@@ -30,15 +30,15 @@ export function ModelTile({ model, selected, onSelect }: Props) {
 
       <dl className="tile__stats">
         <div>
-          <dt>Ein</dt>
+          <dt>In</dt>
           <dd>{formatPricePerMTok(model.prompt_usd_per_mtok)}</dd>
         </div>
         <div>
-          <dt>Aus</dt>
+          <dt>Out</dt>
           <dd>{formatPricePerMTok(model.completion_usd_per_mtok)}</dd>
         </div>
         <div>
-          <dt>Kontext</dt>
+          <dt>Context</dt>
           <dd>{formatContext(model.context_length)}</dd>
         </div>
       </dl>

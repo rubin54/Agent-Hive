@@ -1,4 +1,4 @@
-"""Budget-Durchsetzung und Kostenrechnung."""
+"""Budget enforcement and cost arithmetic."""
 
 from __future__ import annotations
 
@@ -58,14 +58,14 @@ def test_cost_limit_is_hard() -> None:
 
 
 def test_cost_is_decimal_all_the_way() -> None:
-    """Bei Preisen um 1e-7 pro Token summieren sich float-Fehler sichtbar auf."""
+    """At prices around 1e-7 per token, float errors accumulate visibly."""
     pricing = Pricing.model_validate({"prompt": "0.00000014", "completion": "0.00000028"})
     budget = BudgetTracker(limits=BudgetLimits(), pricing=pricing)
     for _ in range(10_000):
         budget.record(Usage(prompt_tokens=1, completion_tokens=1))
 
     assert isinstance(budget.cost_usd, Decimal)
-    # Exakt: 10000 * (0.00000014 + 0.00000028)
+    # Exactly: 10000 * (0.00000014 + 0.00000028)
     assert budget.cost_usd == Decimal("0.0042")
 
 
@@ -77,7 +77,7 @@ def test_reasoning_tokens_are_billed_like_output() -> None:
 
 
 def test_reported_cost_wins_over_own_calculation() -> None:
-    """Gemeldete Kosten kennen Rabatte und Cache-Treffer, die der Katalogpreis nicht sieht."""
+    """Reported cost knows about discounts and cache hits the catalog price cannot see."""
     pricing = Pricing.model_validate({"prompt": "0.001", "completion": "0.001"})
     budget = BudgetTracker(limits=BudgetLimits(), pricing=pricing)
     charged = budget.record(
@@ -88,7 +88,7 @@ def test_reported_cost_wins_over_own_calculation() -> None:
 
 
 def test_unknown_pricing_keeps_cost_at_zero() -> None:
-    """Ohne Preise bleibt die Kostenachse leer statt geschätzt."""
+    """Without prices the cost axis stays empty rather than estimated."""
     budget = BudgetTracker(limits=BudgetLimits(), pricing=None)
     budget.record(Usage(prompt_tokens=10_000, completion_tokens=10_000))
     assert budget.cost_usd == Decimal(0)
@@ -101,4 +101,4 @@ def test_snapshot_reports_everything() -> None:
     snapshot = budget.snapshot()
     assert snapshot.iterations == 1
     assert snapshot.usage.total_tokens == 12
-    assert "1 Iterationen" in snapshot.format()
+    assert "1 iterations" in snapshot.format()

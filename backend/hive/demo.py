@@ -1,11 +1,11 @@
-"""Aufgezeichneter Beispiellauf für `hive run --provider mock`.
+"""Recorded example runs for ``hive run --provider mock``.
 
-Der Mock-Provider ersetzt nur den Modellaufruf. Sandbox, Werkzeuge, Budget und Loop sind
-dieselben wie im Echtbetrieb — es entstehen echte Dateien in einem echten Container, und
-der Lauf prüft sein Ergebnis mit echten Befehlen.
+The mock provider replaces only the model call. Sandbox, tools, budget and loop are the same
+as in live operation — real files appear in a real container, and the run verifies its result
+with real commands.
 
-Die Aufgabe kommt bewusst ohne Paketinstallation aus, damit sie mit der Voreinstellung
-``network="none"`` funktioniert.
+The free-form task deliberately needs no package installation so it works with the default
+``network="none"``.
 """
 
 from __future__ import annotations
@@ -13,19 +13,18 @@ from __future__ import annotations
 from .harness.providers.mock import MockProvider, call, say
 
 DEMO_GOAL = (
-    "Baue eine kleine Web-Seite mit einem Zähler: index.html mit einem Knopf, "
-    "counter.js mit der Logik. Prüfe anschließend, dass die JavaScript-Datei syntaktisch "
-    "korrekt ist."
+    "Build a small web page with a counter: index.html with a button, counter.js with the "
+    "logic. Afterwards verify that the JavaScript file is syntactically valid."
 )
 
 INDEX_HTML = """<!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Zähler</title>
+    <title>Counter</title>
   </head>
   <body>
-    <h1>Zähler</h1>
+    <h1>Counter</h1>
     <output id="value">0</output>
     <button id="increment">+1</button>
     <script src="counter.js"></script>
@@ -44,26 +43,84 @@ button.addEventListener("click", () => {
 });
 """
 
+COUNTER_INDEX = """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Counter</title>
+  </head>
+  <body>
+    <h1>Counter</h1>
+    <output id="value">0</output>
+    <button id="increment">+1</button>
+    <button id="reset">Reset</button>
+    <script src="counter.js"></script>
+  </body>
+</html>
+"""
+
+COUNTER_LOGIC = """const output = document.getElementById("value");
+
+let count = 0;
+
+function render() {
+  output.textContent = String(count);
+}
+
+document.getElementById("increment").addEventListener("click", () => {
+  count += 1;
+  render();
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  count = 0;
+  render();
+});
+
+render();
+"""
+
+
+def build_template_demo_provider() -> MockProvider:
+    """Recorded solution for the ``counter-page`` template.
+
+    Lets the entire evaluation chain — commands, server, Playwright, screenshots — be
+    exercised without an API key and without internet access.
+    """
+    return MockProvider(
+        [
+            call("list_files", {"path": "."}),
+            call("write_file", {"path": "index.html", "content": COUNTER_INDEX}),
+            call("write_file", {"path": "counter.js", "content": COUNTER_LOGIC}),
+            call("run_command", {"command": "node --check counter.js && echo SYNTAX_OK"}),
+            say(
+                "Done. index.html holds the readout and both buttons, counter.js keeps the "
+                "state and renders it. The page is served with `node serve.js`."
+            ),
+        ],
+        model_id="mock/counter-page",
+    )
+
 
 def build_demo_provider() -> MockProvider:
-    """Skript eines vollständigen Laufs inklusive eines Fehlversuchs.
+    """Script of a complete run including one failed attempt.
 
-    Der falsche Werkzeugname in Schritt 3 ist Absicht: Er zeigt, dass ein halluziniertes
-    Werkzeug als Rückmeldung im Gespräch landet und der Lauf weiterläuft, statt zu sterben.
-    Genau das entscheidet später darüber, ob schwache Scout-Modelle überhaupt brauchbar sind.
+    The wrong tool name in step 3 is intentional: it demonstrates that a hallucinated tool
+    lands in the conversation as feedback and the run continues instead of dying. That is
+    exactly what decides later whether weak scout models are usable at all.
     """
     return MockProvider(
         [
             call("list_files", {"path": "."}),
             call("write_file", {"path": "index.html", "content": INDEX_HTML}),
-            call("erstelle_datei", {"path": "counter.js"}),  # Werkzeug existiert nicht
+            call("create_file", {"path": "counter.js"}),  # tool does not exist
             call("write_file", {"path": "counter.js", "content": COUNTER_JS}),
             call("run_command", {"command": "node --check counter.js && echo SYNTAX_OK"}),
             call("list_files", {"path": "."}),
             say(
-                "Fertig. index.html bindet counter.js ein, der Knopf erhöht den Zähler. "
-                "Die Syntaxprüfung mit `node --check` läuft ohne Fehler durch. "
-                "Zum Ansehen genügt es, index.html im Browser zu öffnen."
+                "Done. index.html includes counter.js, the button increments the counter. "
+                "The syntax check with `node --check` passes without errors. "
+                "Opening index.html in a browser is enough to see it."
             ),
         ],
         model_id="mock/demo-scripted",

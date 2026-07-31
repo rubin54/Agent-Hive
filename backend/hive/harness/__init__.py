@@ -1,1 +1,1 @@
-"""Agent-Harness: Loop, Werkzeuge, Budget, Provider."""
+"""Agent harness: loop, tools, budget, providers."""

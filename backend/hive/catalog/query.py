@@ -1,8 +1,8 @@
-"""Projektion, Filterung und Sortierung des Katalogs für das Dashboard.
+"""Projection, filtering and sorting of the catalog for the dashboard.
 
-Preise werden hier von ``Decimal`` auf ``float`` gebracht — aber *nur* für die Anzeige.
-Gerechnet (Kostenschätzung, Budget-Enforcement, Abrechnung) wird ausschließlich in ``Decimal``.
-Diese Trennung sauber zu halten ist wichtig, sobald ab M1 echtes Geld fließt.
+Prices are converted from ``Decimal`` to ``float`` here — but *only* for display. All
+arithmetic (cost estimates, budget enforcement, accounting) stays in ``Decimal``. Keeping
+that split clean matters from M1 onwards, when real money is involved.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class SortKey(StrEnum):
 
 
 class ModelSummary(BaseModel):
-    """Was eine Dashboard-Kachel braucht."""
+    """Everything a dashboard tile needs."""
 
     id: str
     name: str
@@ -96,7 +96,7 @@ def to_summary(model: OpenRouterModel) -> ModelSummary:
 
 
 class CatalogFilter(BaseModel):
-    """Filterkriterien des Dashboards. Alle Felder sind optional und additiv (UND-verknüpft)."""
+    """Dashboard filter criteria. Every field is optional and additive (AND-combined)."""
 
     search: str | None = None
     provider: str | None = None
@@ -126,8 +126,8 @@ class CatalogFilter(BaseModel):
             return False
         if self.max_blended_usd_per_mtok is not None:
             price = summary.blended_usd_per_mtok
-            # Modelle mit unbekanntem Preis fallen aus einem Preisfilter heraus — sie
-            # stillschweigend durchzulassen würde die Kostenschätzung später unterlaufen.
+            # Models with unknown pricing drop out of a price filter — letting them pass
+            # silently would undermine cost estimation later on.
             if price is None or price > self.max_blended_usd_per_mtok:
                 return False
         if self.min_context_length is None:
@@ -138,10 +138,10 @@ class CatalogFilter(BaseModel):
 
 
 def _sort_value(sort: SortKey, summary: ModelSummary) -> tuple[int, float | str]:
-    """Sortierschlüssel mit stabilem Umgang mit fehlenden Werten.
+    """Sort key with stable handling of missing values.
 
-    Das erste Tupelelement schiebt Einträge ohne Wert grundsätzlich ans Ende, egal in welche
-    Richtung sortiert wird — sonst stünden preislose Modelle bei „günstigste zuerst" vorne.
+    The first tuple element always pushes entries without a value to the end, regardless of
+    direction — otherwise price-less models would lead the "cheapest first" listing.
     """
     match sort:
         case SortKey.NAME:

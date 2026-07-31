@@ -1,10 +1,10 @@
-"""Werkzeuge, die auf der Sandbox arbeiten.
+"""Tools operating on the sandbox.
 
-Die Docstrings sind Teil der Schnittstelle zum Modell — sie landen wörtlich im Prompt.
-Deshalb sind sie knapp und handlungsorientiert formuliert statt erklärend.
+The docstrings are part of the interface to the model — they end up verbatim in the prompt.
+That is why they are terse and action-oriented rather than explanatory.
 
-Die Aufteilung in lesende und schreibende Werkzeuge ist keine Kosmetik: Scouts erhalten
-später nur ``READ_ONLY_TOOLS``, weil sie planen und nicht ausführen sollen.
+Splitting read-only from writing tools is not cosmetic: scouts will later receive only
+``READ_ONLY_TOOLS`` because they are meant to plan, not execute.
 """
 
 from __future__ import annotations
@@ -17,38 +17,38 @@ WRITE_TOOLS = ("write_file", "run_command")
 
 
 def build_tools(sandbox: DockerSandbox, *, read_only: bool = False) -> ToolRegistry:
-    """Baut die Werkzeugsammlung für einen Agenten, gebunden an eine konkrete Sandbox."""
+    """Build the tool set for an agent, bound to one concrete sandbox."""
 
     async def read_file(path: str) -> str:
-        """Liest eine Datei aus dem Arbeitsbereich. Pfad relativ zu /workspace."""
+        """Read a file from the workspace. Path is relative to /workspace."""
         try:
             return await sandbox.read_file(path)
         except SandboxError as exc:
             raise ToolError(str(exc)) from exc
 
     async def list_files(path: str = ".") -> str:
-        """Listet Dateien und Ordner. Pfad relativ zu /workspace, Standard ist die Wurzel."""
-        # node_modules und .git ausblenden: Ohne das besteht eine Auflistung fast
-        # ausschließlich aus Abhängigkeiten und frisst das Kontextfenster.
+        """List files and folders. Path is relative to /workspace, default is the root."""
+        # Hide node_modules and .git: without this a listing consists almost entirely of
+        # dependencies and eats the context window.
         result = await sandbox.exec(
             f"find {path!r} -maxdepth 3 "
             "-not -path '*/node_modules/*' -not -path '*/.git/*' "
             "-not -name node_modules -not -name .git | sort | head -200"
         )
         if not result.ok:
-            raise ToolError(f"Verzeichnis nicht lesbar: {result.stderr.strip() or path}")
-        return result.stdout.strip() or "(leer)"
+            raise ToolError(f"Directory not readable: {result.stderr.strip() or path}")
+        return result.stdout.strip() or "(empty)"
 
     async def write_file(path: str, content: str) -> str:
-        """Schreibt eine Datei und legt fehlende Ordner an. Überschreibt vorhandene Inhalte."""
+        """Write a file, creating missing folders. Overwrites existing content."""
         try:
             await sandbox.write_file(path, content)
         except SandboxError as exc:
             raise ToolError(str(exc)) from exc
-        return f"{path} geschrieben ({len(content)} Zeichen)"
+        return f"wrote {path} ({len(content)} characters)"
 
     async def run_command(command: str) -> str:
-        """Führt einen Shell-Befehl im Arbeitsbereich aus und liefert Exit-Code und Ausgabe."""
+        """Run a shell command in the workspace and return exit code and output."""
         try:
             result = await sandbox.exec(command)
         except SandboxError as exc:

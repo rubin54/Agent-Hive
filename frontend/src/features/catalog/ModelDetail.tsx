@@ -8,14 +8,14 @@ interface Props {
 
 export function ModelDetail({ model, onClose }: Props) {
   return (
-    <section className="detail" aria-label={`Details zu ${model.name}`}>
+    <section className="detail" aria-label={`Details for ${model.name}`}>
       <header className="detail__head">
         <div>
           <h2>{model.name}</h2>
           <code className="detail__id">{model.id}</code>
         </div>
         <button type="button" className="button button--ghost" onClick={onClose}>
-          Schließen
+          Close
         </button>
       </header>
 
@@ -23,39 +23,39 @@ export function ModelDetail({ model, onClose }: Props) {
 
       <div className="detail__grid">
         <div>
-          <span className="detail__key">Eingabe</span>
+          <span className="detail__key">Input</span>
           <span className="detail__value">
             {formatPricePerMTok(model.prompt_usd_per_mtok)} / MTok
           </span>
         </div>
         <div>
-          <span className="detail__key">Ausgabe</span>
+          <span className="detail__key">Output</span>
           <span className="detail__value">
             {formatPricePerMTok(model.completion_usd_per_mtok)} / MTok
           </span>
         </div>
         <div>
-          <span className="detail__key">Mischpreis (3:1)</span>
+          <span className="detail__key">Blended (3:1)</span>
           <span className="detail__value">
             {formatPricePerMTok(model.blended_usd_per_mtok)} / MTok
           </span>
         </div>
         <div>
-          <span className="detail__key">Kontext</span>
+          <span className="detail__key">Context</span>
           <span className="detail__value">{formatContext(model.context_length)}</span>
         </div>
         <div>
-          <span className="detail__key">Max. Ausgabe</span>
+          <span className="detail__key">Max output</span>
           <span className="detail__value">{formatContext(model.max_completion_tokens)}</span>
         </div>
         <div>
-          <span className="detail__key">Strukturierte Ausgabe</span>
-          <span className="detail__value">{model.supports_structured_output ? "ja" : "nein"}</span>
+          <span className="detail__key">Structured output</span>
+          <span className="detail__value">{model.supports_structured_output ? "yes" : "no"}</span>
         </div>
       </div>
 
       <div className="detail__section">
-        <span className="detail__key">Rollen im Schwarm</span>
+        <span className="detail__key">Roles in the swarm</span>
         <ul className="tile__roles">
           {model.roles.map((role) => (
             <li key={role} className={`role role--${role}`}>
@@ -68,18 +68,18 @@ export function ModelDetail({ model, onClose }: Props) {
 
       {model.reasoning_efforts.length > 0 && (
         <div className="detail__section">
-          <span className="detail__key">Reasoning-Stufen</span>
+          <span className="detail__key">Reasoning levels</span>
           <p className="detail__value">{model.reasoning_efforts.join(", ")}</p>
           <p className="filters__hint">
-            Unterschiedliche Denkstufen sind nicht direkt vergleichbar. Der Benchmark fährt
-            die Standardstufe und weist sie im Ergebnis aus.
+            Different reasoning levels are not directly comparable. The benchmark runs the
+            model's default and reports it alongside the result.
           </p>
         </div>
       )}
 
       <p className="detail__soon">
-        Rollenzuweisung und Sweep-Start folgen in M5 — hier wird das Modell später in eine
-        Hive-Komposition gezogen.
+        Role assignment and sweep start arrive in M5 — this is where a model will be dragged
+        into a hive composition.
       </p>
     </section>
   );

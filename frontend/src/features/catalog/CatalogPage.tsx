@@ -21,7 +21,7 @@ export function CatalogPage() {
   const models = useQuery({
     queryKey: ["models", query],
     queryFn: () => api.models(query),
-    // Ohne das flackert das Raster bei jedem Tastendruck in der Suche auf leer.
+    // Without this the grid flashes empty on every keystroke in the search box.
     placeholderData: keepPreviousData,
   });
 
@@ -31,8 +31,8 @@ export function CatalogPage() {
   });
 
   const patchQuery = (patch: Partial<CatalogQuery>) =>
-    // Jede Filteränderung springt zurück auf Seite 1 — sonst zeigt eine engere
-    // Auswahl plötzlich eine leere Seite 3.
+    // Any filter change jumps back to page 1 — otherwise a narrower selection would suddenly
+    // show an empty page 3.
     setQuery((current) => ({ ...current, ...patch, offset: 0 }));
 
   const page = models.data;
@@ -43,7 +43,7 @@ export function CatalogPage() {
   const headline = useMemo(() => {
     if (!status.data) return null;
     const { model_count, tool_capable_count, vision_capable_count } = status.data;
-    return `${model_count} Modelle · ${tool_capable_count} mit Tool-Calling · ${vision_capable_count} mit Bildverständnis`;
+    return `${model_count} models · ${tool_capable_count} with tool calling · ${vision_capable_count} with image understanding`;
   }, [status.data]);
 
   return (
@@ -55,15 +55,13 @@ export function CatalogPage() {
           </span>
           <div>
             <h1>Agent Hive</h1>
-            <p className="topbar__sub">{headline ?? "Modellkatalog wird geladen …"}</p>
+            <p className="topbar__sub">{headline ?? "Loading model catalog …"}</p>
           </div>
         </div>
 
         <div className="topbar__meta">
           {status.data && (
-            <span className="topbar__snapshot">
-              Stand {formatSyncedAt(status.data.synced_at)}
-            </span>
+            <span className="topbar__snapshot">as of {formatSyncedAt(status.data.synced_at)}</span>
           )}
           <button
             type="button"
@@ -71,27 +69,27 @@ export function CatalogPage() {
             onClick={() => sync.mutate()}
             disabled={sync.isPending}
           >
-            {sync.isPending ? "Synchronisiere …" : "Katalog aktualisieren"}
+            {sync.isPending ? "Syncing …" : "Refresh catalog"}
           </button>
         </div>
       </header>
 
       {status.data?.is_fixture && (
         <div className="banner">
-          Es läuft der mitgelieferte Katalogstand. Preise und Modellliste können veraltet sein —
-          „Katalog aktualisieren" holt den aktuellen Stand von OpenRouter (kein API-Key nötig).
+          Running on the bundled catalog state. Prices and the model list may be out of date —
+          "Refresh catalog" fetches the current state from OpenRouter (no API key needed).
         </div>
       )}
 
       {sync.isError && (
         <div className="banner banner--error">
-          Aktualisierung fehlgeschlagen: {(sync.error as Error).message}
+          Refresh failed: {(sync.error as Error).message}
         </div>
       )}
 
       {status.isError && (
         <div className="banner banner--error">
-          Kein Katalog verfügbar: {(status.error as Error).message}
+          No catalog available: {(status.error as Error).message}
         </div>
       )}
 
@@ -106,13 +104,13 @@ export function CatalogPage() {
         <main className="results">
           <div className="results__head">
             <span>
-              {models.isPending ? "lädt …" : `${total} Treffer`}
-              {total > shown && ` — ${shown} angezeigt`}
+              {models.isPending ? "loading …" : `${total} matches`}
+              {total > shown && ` — showing ${shown}`}
             </span>
           </div>
 
           {total === 0 && !models.isPending && (
-            <p className="empty">Kein Modell passt auf diese Filter.</p>
+            <p className="empty">No model matches these filters.</p>
           )}
 
           <div className="grid">
@@ -137,7 +135,7 @@ export function CatalogPage() {
                 }))
               }
             >
-              Weitere {Math.min(PAGE_SIZE, total - shown)} anzeigen
+              Show {Math.min(PAGE_SIZE, total - shown)} more
             </button>
           )}
         </main>

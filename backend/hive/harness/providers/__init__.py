@@ -1,1 +1,1 @@
-"""Modellanbindungen."""
+"""Model providers."""

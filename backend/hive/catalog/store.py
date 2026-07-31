@@ -1,11 +1,11 @@
-"""Versionierte Snapshot-Ablage für den Modellkatalog.
+"""Versioned snapshot storage for the model catalog.
 
-Snapshots sind unveränderlich. Ein Benchmark-Ergebnis von morgen muss auf den Modell- und
-Preisstand von morgen verweisen können — sonst vergleicht man nach drei Wochen Äpfel mit
-Birnen, ohne es zu merken.
+Snapshots are immutable. A benchmark result from tomorrow must be able to point at
+tomorrow's model and price state — otherwise you end up comparing apples to oranges three
+weeks later without noticing.
 
-M0 speichert als JSON auf der Platte. Ab M4 (Sweeps) wandert das Ganze nach Postgres; die
-Schnittstelle hier ist so geschnitten, dass der Tausch nur diese Datei betrifft.
+M0 stores JSON on disk. From M4 (sweeps) onwards this moves to Postgres; the interface here
+is cut so that only this file changes.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ _TIMESTAMP_FORMAT = "%Y%m%dT%H%M%SZ"
 
 @dataclass(frozen=True, slots=True)
 class Snapshot:
-    """Ein eingefrorener Katalogstand."""
+    """A frozen catalog state."""
 
     snapshot_id: str
     synced_at: datetime
@@ -41,7 +41,7 @@ class CatalogStore:
     def __init__(self, directory: Path) -> None:
         self.directory = directory
 
-    # ---------------------------------------------------------------- schreiben
+    # ----------------------------------------------------------------- writing
 
     def save(
         self,
@@ -63,8 +63,8 @@ class CatalogStore:
             "model_count": len(models),
             "models": raw,
         }
-        # Erst daneben schreiben, dann umbenennen: ein abgebrochener Sync darf keinen
-        # halben Snapshot hinterlassen, den der nächste Start für gültig hält.
+        # Write beside, then rename: an aborted sync must not leave half a snapshot that the
+        # next start would treat as valid.
         temp = path.with_suffix(".partial")
         temp.write_text(json.dumps(document, ensure_ascii=False, indent=2), encoding="utf-8")
         temp.replace(path)
@@ -73,10 +73,10 @@ class CatalogStore:
             snapshot_id=snapshot_id, synced_at=stamp, source=source, models=list(models)
         )
 
-    # ------------------------------------------------------------------- lesen
+    # ----------------------------------------------------------------- reading
 
     def list_snapshot_ids(self) -> list[str]:
-        """Snapshot-IDs, neueste zuerst."""
+        """Snapshot ids, newest first."""
         if not self.directory.is_dir():
             return []
         ids = [
@@ -126,6 +126,6 @@ class CatalogStore:
         return Snapshot(
             snapshot_id=str(document.get("snapshot_id") or path.stem),
             synced_at=synced_at,
-            source=str(document.get("source") or "unbekannt"),
+            source=str(document.get("source") or "unknown"),
             models=models,
         )

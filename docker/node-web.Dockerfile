@@ -1,14 +1,14 @@
-# Arbeitsumgebung für Web-Aufgaben. Vorgewärmt, damit nicht jeder Lauf dieselbe
-# Grundinstallation wiederholt — bei einem Sweep über zwölf Modelle summiert sich das.
+# Working environment for web tasks. Pre-warmed so that not every run repeats the same
+# base installation — across a sweep of twelve models that adds up.
 FROM node:22-slim
 
-# coreutils liefert `timeout`, mit dem die Sandbox Einzelbefehle wirklich beendet.
+# coreutils provides `timeout`, which the sandbox uses to really terminate commands.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends coreutils ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Der Arbeitsbereich gehört dem unprivilegierten Nutzer `node`, der im Image bereits
-# existiert. Kein Host-Mount — alles bleibt im Container.
+# The workspace belongs to the unprivileged `node` user that already exists in the image.
+# No host mount — everything stays inside the container.
 RUN mkdir -p /workspace && chown node:node /workspace
 
 USER node

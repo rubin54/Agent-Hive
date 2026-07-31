@@ -1,4 +1,4 @@
-"""Filterung und Sortierung des Katalogs."""
+"""Catalog filtering and sorting."""
 
 from __future__ import annotations
 
@@ -18,19 +18,19 @@ def ids(models: list[OpenRouterModel], criteria: CatalogFilter) -> list[str]:
 
 def test_search_matches_id_and_description(sample_models: list[OpenRouterModel]) -> None:
     assert ids(sample_models, CatalogFilter(search="claude")) == ["anthropic/claude-sonnet"]
-    assert len(ids(sample_models, CatalogFilter(search="Testmodell"))) == len(sample_models)
+    assert len(ids(sample_models, CatalogFilter(search="test model"))) == len(sample_models)
 
 
 def test_role_filter_uses_derived_capabilities(sample_models: list[OpenRouterModel]) -> None:
     inspectors = ids(sample_models, CatalogFilter(role=Role.INSPECTOR))
     assert set(inspectors) == {"anthropic/claude-sonnet", "openai/gpt-mini"}
 
-    # Jedes Modell taugt als Scout — auch die ohne Tool-Calling.
+    # Every model qualifies as a scout — including those without tool calling.
     assert len(ids(sample_models, CatalogFilter(role=Role.SCOUT))) == len(sample_models)
 
 
 def test_price_filter_excludes_unknown_pricing(sample_models: list[OpenRouterModel]) -> None:
-    """Ein Modell ohne bekannten Preis darf keinen Preisfilter passieren."""
+    """A model without a known price must not pass a price filter."""
     result = ids(sample_models, CatalogFilter(max_blended_usd_per_mtok=1.0))
     assert "obscure/no-price" not in result
     assert "mistralai/mistral-small" in result
@@ -54,7 +54,7 @@ def test_price_sort_puts_unknown_last(sample_models: list[OpenRouterModel]) -> N
 
     descending = ids(sample_models, CatalogFilter(sort=SortKey.PRICE_DESC))
     assert descending[0] == "anthropic/claude-sonnet"
-    # Auch bei umgekehrter Richtung bleibt Unbekanntes hinten.
+    # Unknown values stay at the end even when the direction flips.
     assert descending[-1] == "obscure/no-price"
 
 

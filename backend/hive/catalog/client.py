@@ -1,7 +1,7 @@
-"""HTTP-Zugriff auf den OpenRouter-Modellkatalog.
+"""HTTP access to the OpenRouter model catalog.
 
-Der Endpunkt ist öffentlich — für das Auflisten der Modelle wird **kein** API-Key benötigt.
-Das ist der Grund, warum M0 ohne jede Anmeldung nutzbar ist.
+The endpoint is public — listing models needs **no** API key. That is why M0 works without
+any sign-up.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 
 
 class CatalogFetchError(RuntimeError):
-    """Der Katalog konnte nicht geladen werden."""
+    """The catalog could not be loaded."""
 
 
 async def fetch_models(
@@ -23,11 +23,10 @@ async def fetch_models(
     timeout: float = 30.0,
     client: httpx.AsyncClient | None = None,
 ) -> tuple[list[OpenRouterModel], list[dict[str, object]]]:
-    """Lädt den Katalog und gibt geparste Modelle plus Rohdaten zurück.
+    """Load the catalog and return parsed models plus the raw payload.
 
-    Die Rohdaten werden mitgeliefert, weil der Snapshot sie unverändert speichert: Wenn
-    OpenRouter später ein Feld ergänzt, das wir heute ignorieren, lassen sich alte Snapshots
-    trotzdem neu auswerten.
+    The raw payload comes along because snapshots store it verbatim: if OpenRouter later adds
+    a field we ignore today, old snapshots remain re-analysable.
     """
     owns_client = client is None
     http = client or httpx.AsyncClient(timeout=timeout)
@@ -36,14 +35,14 @@ async def fetch_models(
         response.raise_for_status()
         payload = response.json()
     except httpx.HTTPError as exc:
-        raise CatalogFetchError(f"OpenRouter nicht erreichbar: {exc}") from exc
+        raise CatalogFetchError(f"OpenRouter unreachable: {exc}") from exc
     finally:
         if owns_client:
             await http.aclose()
 
     raw = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(raw, list):
-        raise CatalogFetchError("Unerwartete Antwortstruktur: 'data'-Liste fehlt")
+        raise CatalogFetchError("Unexpected response shape: 'data' list missing")
 
     models: list[OpenRouterModel] = []
     skipped = 0
@@ -54,10 +53,10 @@ async def fetch_models(
         try:
             models.append(OpenRouterModel.model_validate(entry))
         except ValueError:
-            # Ein einzelnes kaputtes Modell darf den gesamten Sync nicht kippen.
+            # A single broken model must not take down the whole sync.
             skipped += 1
 
     if not models:
-        raise CatalogFetchError(f"Kein einziges Modell parsebar ({skipped} verworfen)")
+        raise CatalogFetchError(f"Not a single model was parsable ({skipped} discarded)")
 
     return models, raw

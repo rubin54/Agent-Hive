@@ -1,4 +1,4 @@
-"""Modellkatalog: Abruf von OpenRouter, Fähigkeitsableitung, versionierte Snapshots."""
+"""Model catalog: OpenRouter sync, capability derivation, versioned snapshots."""
 
 from .capabilities import Capabilities, Role, derive_capabilities
 from .client import CatalogFetchError, fetch_models

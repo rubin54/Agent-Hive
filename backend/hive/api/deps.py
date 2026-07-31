@@ -1,4 +1,4 @@
-"""Abhängigkeiten für die API-Schicht."""
+"""Dependencies for the API layer."""
 
 from __future__ import annotations
 

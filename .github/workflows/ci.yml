@@ -21,7 +21,9 @@ jobs:
         working-directory: backend
       - run: mypy hive
         working-directory: backend
-      # Die Tests laufen ohne Netz: sie nutzen respx und die mitgelieferte Fixture.
+      # The fast part runs without network and without a key: respx intercepts HTTP and the
+      # catalog comes from the fixture. Container tests skip themselves without a Docker
+      # daemon — ubuntu-latest has one, so they do run here.
       - run: pytest -q
         working-directory: backend
 
@@ -44,8 +46,8 @@ jobs:
         working-directory: frontend
 
   schema-drift:
-    # Stellt sicher, dass die TS-Typen zum Pydantic-Schema passen. Pydantic ist die
-    # einzige Schema-Quelle; ein Auseinanderlaufen soll im PR auffallen, nicht zur Laufzeit.
+    # Ensures the TS types match the pydantic schema. Pydantic is the single schema source;
+    # divergence should surface in the PR, not at runtime.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,5 +64,5 @@ jobs:
         working-directory: frontend
       - run: npx openapi-typescript ../openapi.json -o src/api/schema.d.ts
         working-directory: frontend
-      - name: Schema erzeugt sich reproduzierbar
+      - name: Schema regenerates reproducibly
         run: test -s frontend/src/api/schema.d.ts

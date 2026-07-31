@@ -1,55 +1,63 @@
 # Agent Hive
 
-> Ein heterogener Agenten-Schwarm, dessen Zusammensetzung man aus dem OpenRouter-Katalog baut —
-> und der sich gegen Einzelmodelle messen lässt.
+> A heterogeneous agent swarm whose composition you assemble from the OpenRouter catalog —
+> and which can be measured against single models.
 
-**Leitfrage:** Schlägt ein Schwarm aus vielen billigen Modellen ein einzelnes teures Modell
-bei gleichem Dollar-Einsatz?
+**The question:** does a swarm of many cheap models beat a single expensive one at equal
+dollar spend?
 
-Es gibt reichlich Leaderboards, die Modelle einzeln ranken, und reichlich Multi-Agent-Frameworks,
-die Koordination behaupten, ohne sie je zu messen. Dieses Projekt macht beides zusammen und
-beantwortet die Frage mit Daten — auch wenn die Antwort „nein" lauten sollte.
+There is no shortage of leaderboards ranking models individually, and no shortage of
+multi-agent frameworks claiming coordination without ever measuring it. This project does both
+at once and answers the question with data — even if the answer turns out to be "no".
 
-Der vollständige Plan mit Methodik und Meilensteinen steht in [PLAN.md](PLAN.md).
+The full plan with methodology and milestones lives in [PLAN.md](PLAN.md).
 
 ---
 
-## Stand
+## Status
 
-| Meilenstein | Inhalt | Status |
+| Milestone | Contents | State |
 |---|---|---|
-| **M0** | Modellkatalog: OpenRouter-Sync, Rollenableitung, Dashboard mit Filtern | fertig |
-| **M1** | Harness: Agent-Loop, Werkzeug-Registry, Budget, Provider, Docker-Sandbox | fertig |
-| M2 | Task-Templates und automatische Checks | offen |
-| M3–M9 | Journal, Sweeps, Schwarm-Engine, Bewertung — siehe [PLAN.md](PLAN.md) | offen |
+| **M0** | Model catalog: OpenRouter sync, role derivation, dashboard with filters | done |
+| **M1** | Harness: agent loop, tool registry, budget, providers, Docker sandbox | done |
+| **M2** | Versioned task templates, mechanical checks, Playwright, screenshots | done |
+| M3–M9 | Journal, sweeps, swarm engine, scoring — see [PLAN.md](PLAN.md) | open |
 
-**Ohne API-Key nutzbar:** Der Modell-Endpunkt von OpenRouter ist öffentlich, ein Katalogstand
-liegt dem Repo bei, und der Beispiellauf nutzt einen aufgezeichneten Mock-Provider.
+**Usable without an API key:** the OpenRouter model endpoint is public, a catalog snapshot
+ships with the repository, and the example runs use a recorded mock provider.
 
-## Der Harness in Aktion
+## The harness in action
 
 ```bash
 make demo
 ```
 
-Spielt einen vollständigen Agentenlauf ab: echter Docker-Container, echte Dateien, echte
-Befehle — nur der Modellaufruf ist aufgezeichnet. Der Lauf enthält bewusst einen
-halluzinierten Werkzeugnamen, um zu zeigen, dass daraus eine Rückmeldung wird statt eines
-Absturzes.
+Plays back a full agent run: real Docker container, real files, real commands — only the model
+call is recorded. The run deliberately contains a hallucinated tool name to show that this
+becomes feedback rather than a crash.
 
-Mit eigenem Key gegen ein echtes Modell:
+The complete evaluation chain on a real task:
 
 ```bash
-HIVE_OPENROUTER_API_KEY=sk-or-... backend/.venv/Scripts/python -m hive.cli run --model anthropic/claude-haiku-4.5 --goal "Baue eine Zähler-Seite" --network bridge
+backend/.venv/Scripts/python -m hive.cli run --template minecraft-clone --provider mock
 ```
 
-## Schnellstart
+Installs three.js and Vite inside the container, builds, starts the preview server, checks in a
+browser and stores screenshots of the rendered voxel scene — all without an API key.
+
+Against a real model with your own key:
+
+```bash
+HIVE_OPENROUTER_API_KEY=sk-or-... backend/.venv/Scripts/python -m hive.cli run --template minecraft-clone --model anthropic/claude-haiku-4.5
+```
+
+## Quickstart
 
 ```bash
 make install
 ```
 
-Backend und Frontend in zwei Terminals:
+Backend and frontend in two terminals:
 
 ```bash
 make backend
@@ -59,117 +67,164 @@ make backend
 make frontend
 ```
 
-Dann [http://localhost:5173](http://localhost:5173) öffnen. Ohne `make`:
+Then open [http://localhost:5173](http://localhost:5173). Without `make`:
 
 ```bash
 python -m venv backend/.venv && backend/.venv/Scripts/python -m pip install -e "backend[dev]" && npm install --prefix frontend
 ```
 
-Aktuellen Katalogstand holen (überschreibt den mitgelieferten nicht, sondern legt einen neuen
-Snapshot an):
+Fetch the current catalog state (this does not overwrite the bundled one, it adds a new
+snapshot):
 
 ```bash
 make sync
 ```
 
-Falls Port 8000 oder 5173 belegt ist: `frontend/.env.local` anlegen mit
-`VITE_API_TARGET=http://127.0.0.1:8010` und das Backend mit `API_PORT=8010 make backend` starten.
+If port 8000 or 5173 is taken: create `frontend/.env.local` with
+`VITE_API_TARGET=http://127.0.0.1:8010` and start the backend with `API_PORT=8010 make backend`.
 
-## Rollen im Schwarm
+## Roles in the swarm
 
-Die Rollenteilung folgt keiner Entwurfslaune, sondern einer realen Fähigkeitsgrenze: Viele
-günstige Modelle beherrschen **kein Tool-Calling**. Statt sie auszuschließen, planen sie als
-Scouts in Text — ausführen mit Werkzeugen übernehmen Worker.
+The division of labour follows no design whim but a real capability boundary: many cheap models
+cannot call tools. Rather than excluding them, they plan as scouts in text — workers do the
+execution with tools.
 
-| Rolle | Voraussetzung | Aufgabe |
+| Role | Requirement | Task |
 |---|---|---|
-| **Scout** | keine | Lösungsraum absuchen, Kandidaten vorschlagen |
-| **Worker** | Tool-Calling | Kandidaten in der Sandbox ausarbeiten |
-| **Inspector** | Bildverständnis | Ergebnisse prüfen und abstimmen |
-| **Queen** | Tool-Calling | Synthese, Patt-Auflösung, Abbruch |
+| **Scout** | none | Explore the solution space, propose candidates |
+| **Worker** | tool calling | Elaborate candidates in the sandbox |
+| **Inspector** | image understanding | Verify results and vote |
+| **Queen** | tool calling | Synthesis, tie-breaking, termination |
 
-Das Dashboard leitet die Eignung aus `supported_parameters` und `architecture.input_modalities`
-ab. Modelle, die für einen vollen Schwarmlauf ausfallen, werden **gedämpft mit Begründung**
-angezeigt statt stillschweigend gefiltert.
+The dashboard derives eligibility from `supported_parameters` and
+`architecture.input_modalities`. Models that cannot run a full swarm are shown **dimmed with a
+reason** rather than filtered out silently.
 
-## Entwurfsentscheidungen, die man im Code sieht
+## Task templates
 
-**Preise sind `Decimal`, nie `float`.** OpenRouter liefert Beträge wie `0.00000014` pro Token.
-Über zehntausende Aufrufe summieren sich Binärfehler zu sichtbaren Abweichungen. Auf `float`
-umgestellt wird ausschließlich für die Anzeige (`query.py`).
+A template is the object under measurement: prompt, starter files, budget, checks and scoring
+rubric in one versioned YAML. It is **immutable** — a change produces a new version and older
+runs keep their reference version. Every loaded template also carries a content hash so that
+editing the file without bumping the version becomes visible.
 
-**Unbekannter Preis ≠ kostenlos.** OpenRouter nutzt `-1` für variable Tarife. Diese Modelle
-fallen aus jedem Preisfilter heraus, statt als „gratis" durchzurutschen und später jede
-Kostenschätzung zu unterlaufen.
+```bash
+backend/.venv/Scripts/python -m hive.cli template list
+```
 
-**Snapshots sind unveränderlich.** Jeder Sync legt einen neuen, zeitgestempelten Stand ab und
-speichert die **Rohdaten** mit. Ein Benchmark-Ergebnis muss auf den Modell- und Preisstand von
-damals verweisen können, und ältere Snapshots bleiben mit später ergänzten Feldern auswertbar.
+Everything that influences the comparison — prompt, budget, network mode, image — comes from
+the template and not from the command line. Otherwise the control variable would be adjustable
+by accident.
 
-**Pydantic ist die einzige Schema-Quelle.** Die TypeScript-Typen entstehen per
-`make types` aus dem OpenAPI-Schema von FastAPI. Bei getrenntem Python/TS-Stack ist
-Schema-Drift das Standardproblem — CI prüft, dass sich das Schema reproduzierbar erzeugen lässt.
+Three check kinds: `command` (build, tests, linter), `serve` (starts a server and waits for
+readiness) and `playwright` (browser behaviour and screenshots) — each with `required`, so a
+finding does not necessarily abort the chain. After a blocking failure the remaining checks are
+skipped rather than run pointlessly.
 
-**Werkzeugfehler sind Rückmeldung, kein Absturz.** Ein halluzinierter Werkzeugname liefert dem
-Modell die Liste der verfügbaren Werkzeuge, ungültige Argumente liefern den Validierungsfehler,
-kaputtes JSON in den Argumenten wird zu leeren Argumenten. Nur so übersteht der Loop schwache
-Modelle — und die sollen im Schwarm gerade die Mehrheit stellen. Eine Reißleine nach fünf
-Iterationen ohne einen einzigen erfolgreichen Werkzeugaufruf verhindert, dass sich ein Modell
-im selben Fehler festbeißt.
+## Design decisions visible in the code
 
-**Der Agent-Loop ist die Kontrollvariable.** Jedes Modell und später jede Schwarm-Rolle läuft
-durch exakt denselben Code. Werkzeuge laufen bewusst sequenziell: Sie teilen sich einen
-Dateibaum, und paralleles Schreiben würde Ergebnisse von der Aufrufreihenfolge abhängig machen.
+**Prices are `Decimal`, never `float`.** OpenRouter returns amounts like `0.00000014` per
+token. Across tens of thousands of calls, binary rounding errors accumulate into visible drift.
+The conversion to `float` happens for display only (`query.py`).
 
-**Budgets sind harte Grenzen.** Iterationen, Tokens, Laufzeit und Kosten werden durchgesetzt,
-nicht empfohlen. Für Modell-gegen-Modell wird über Iterationen und Tokens gedeckelt — ein
-Dollar-Deckel gäbe billigen Modellen mehr Versuche. Erst beim Vergleich Schwarm gegen Solo
-ist Dollar-Parität die richtige Kontrollvariable.
+**Unknown price ≠ free.** OpenRouter uses `-1` for variable rates. Those models drop out of
+every price filter instead of slipping through as "free" and undermining cost estimation later.
+
+**Snapshots are immutable.** Every sync stores a new, timestamped state including the **raw
+payload**. A benchmark result must be traceable to the model and price state it was produced
+under, and older snapshots stay analysable when new fields appear.
+
+**Pydantic is the single schema source.** The TypeScript types are generated from FastAPI's
+OpenAPI schema via `make types`. With a split Python/TS stack, schema drift is the default
+failure mode; CI verifies the schema can be regenerated reproducibly.
+
+**Tool failures are feedback, not crashes.** A hallucinated tool name returns the list of
+available tools, invalid arguments return the validation error, broken JSON in the arguments
+becomes empty arguments. That is the only way the loop survives weak models — and those are
+meant to be the majority in a swarm. A rip cord after five iterations without a single
+successful tool call stops a model from getting stuck on the same error.
+
+**The agent loop is the control variable.** Every model, and later every swarm role, runs
+through exactly the same code. Tools run sequentially on purpose: they share one file tree, and
+parallel writes would make results depend on invocation order.
+
+**Budgets are hard limits.** Iterations, tokens, wall clock and cost are enforced, not
+suggested. Model-versus-model is capped by iterations and tokens — a dollar cap would give
+cheap models more attempts. Only for swarm-versus-solo is dollar parity the right control.
 
 ## Sandbox
 
-Modelle schreiben und **führen** Code aus, deshalb ist die Isolation Pflicht:
+Models write and **execute** code, so isolation is mandatory:
 
-- ein Container pro Lauf, Nutzer ohne Root, `cap_drop: ALL`, `no-new-privileges`
-- keine Host-Mounts — der Arbeitsbereich verlässt den Container nur durch ausdrückliches Lesen
-- Grenzen für Speicher, CPU, Prozesse und Laufzeit je Befehl (`timeout` läuft *im* Container
-  und beendet den Prozess wirklich)
-- gekappte Werkzeugausgaben, damit ein Build-Log nicht das Kontextfenster sprengt
-- Pfadnormalisierung mit `PurePosixPath`: `Path.resolve()` würde auf einem Windows-Host gegen
-  das Host-Dateisystem auflösen und den Ausbruchsschutz aushebeln
+- one container per run, non-root user, `cap_drop: ALL`, `no-new-privileges`
+- no host mounts — the workspace only leaves the container through explicit reads
+- limits on memory, CPU, processes and per-command runtime (`timeout` runs *inside* the
+  container and really terminates the process)
+- capped tool output so a build log cannot blow up the context window
+- path normalisation with `PurePosixPath`: `Path.resolve()` on a Windows host would resolve
+  against the host filesystem and defeat the escape guard
 
-Diese Zusagen werden getestet, nicht behauptet — `tests/test_sandbox.py` prüft Nutzer, Netzwerk,
-Rechteausweitung, Zeitlimit und Ausgabekappung im echten Container.
+These promises are tested, not asserted in prose — `tests/test_sandbox.py` verifies user,
+network, privilege escalation, time limit and output capping inside a real container.
 
-**Bekannte Lücke:** Das Netzwerk ist derzeit nur ganz an (`bridge`) oder ganz aus (`none`,
-Voreinstellung). Der im Plan vorgesehene Egress-Proxy mit Allowlist für Paketregistries fehlt
-noch und muss vor dem Einsatz mit fremdem Code kommen.
+### Network modes
 
-## Entwicklung
+| Mode | Meaning |
+|---|---|
+| `none` | No network interface. Strongest isolation, but **cannot** be extended later |
+| `internal` | Dedicated Docker network with `internal=True`: containers reach each other, not the internet |
+| `bridge` | Open network |
+
+`internal` is the interesting case: the checker container reaches the application, the
+application does not reach the internet. Exactly that combination allows browser checks without
+granting the subject network access. For `npm install`, `bridge` is attached **selectively** and
+revoked afterwards.
+
+Docker does not allow attaching a container started with `network_mode=none` to a network
+later. Templates with network needs must therefore request `internal` — the template schema
+checks this on load, not after the expensive agent phase.
+
+**Known gap:** the egress proxy with an allowlist for package registries planned in
+[PLAN.md](PLAN.md) is still missing. Selective access is tighter than "network on for the whole
+run", but during an `npm install` the container has the open internet available.
+
+### A lesson from building the checks
+
+The first Playwright check for the 3D scene read pixels *inside the page*
+(`context.drawImage(canvas, …)`). With WebGL that returns an empty buffer once the browser
+discards the drawing buffer after compositing — the default. The check failed a perfectly
+correct voxel scene. The alternative would have been to prescribe `preserveDrawingBuffer: true`
+to the model — precisely the implementation coupling this benchmark aims to avoid. Playwright
+screenshots are used now, which go through the compositor. A test pins the mistake down so it
+cannot return.
+
+## Development
 
 ```bash
 make check
 ```
 
-Führt Lint, Typecheck und Tests für beide Seiten aus: `ruff`, `mypy --strict`, `pytest`
-(92 Tests), `tsc --noEmit`, `vitest`. Die Backend-Tests laufen **ohne Netz und ohne Key** —
-HTTP wird mit `respx` abgefangen, der Katalog kommt aus der Fixture. Die Sandbox-Tests
-überspringen sich selbst, wenn kein Docker-Daemon erreichbar ist.
+Runs lint, typecheck and tests for both sides: `ruff`, `mypy --strict`, `pytest` (121 tests),
+`tsc --noEmit`, `vitest`. The fast part runs **without network and without a key** — HTTP is
+intercepted with `respx`, the catalog comes from the fixture. Container tests skip themselves
+when no Docker daemon is reachable.
 
 ```
 backend/hive/
-  catalog/     OpenRouter-Sync, Fähigkeitsableitung, Snapshots, Filterung
-  harness/     Agent-Loop, Werkzeug-Registry, Budget, Ereignisse, Provider
-  sandbox/     Docker-Container, Werkzeuge auf dem Arbeitsbereich
-  api/         FastAPI: REST-Endpunkte
-  cli.py       hive catalog sync | show, hive run, hive openapi
-docker/        Sandbox-Image
+  catalog/     OpenRouter sync, capability derivation, snapshots, filtering
+  harness/     agent loop, tool registry, budget, events, providers, runner
+  sandbox/     Docker container, network modes, workspace tools
+  templates/   versioned task definitions, loading and validation
+  checks/      command, serve and Playwright checks
+  api/         FastAPI REST endpoints
+  cli.py       hive catalog | template | run | openapi
+docker/        sandbox image and checker image
+templates/     counter-page, minecraft-clone
 frontend/src/
-  api/         Client und Typen
-  features/catalog/   Kachelraster, Filter, Detailpanel
-  lib/         Anzeigeformatierung
+  api/         client and types
+  features/catalog/   tile grid, filters, detail panel
+  lib/         display formatting
 ```
 
-## Lizenz
+## License
 
 MIT

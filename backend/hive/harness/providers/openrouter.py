@@ -1,4 +1,4 @@
-"""OpenRouter-Provider (OpenAI-kompatibles Chat-Completions-Format)."""
+"""OpenRouter provider (OpenAI-compatible chat completions format)."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from .base import ProviderError
 
 OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# 429 und 5xx sind vorübergehend, 4xx sonst nicht — ein erneuter Versuch bei 400
-# verbrennt nur Zeit und, schlimmer, Budget.
+# 429 and 5xx are transient, other 4xx are not — retrying a 400 only burns time and, worse,
+# budget.
 RETRYABLE_STATUS = frozenset({408, 409, 429, 500, 502, 503, 504})
 
 
@@ -46,9 +46,9 @@ def _parse_tool_calls(raw: list[dict[str, Any]] | None) -> list[ToolCall]:
         name = function.get("name")
         if not name:
             continue
-        # Argumente kommen als JSON-String. Schwächere Modelle liefern hier regelmäßig
-        # kaputtes JSON — das darf den Lauf nicht kippen, sondern wird zu leeren
-        # Argumenten, die dann die Schemavalidierung als Rückmeldung beanstandet.
+        # Arguments arrive as a JSON string. Weaker models regularly emit broken JSON here —
+        # that must not take down the run. It becomes empty arguments, which schema
+        # validation then reports back as feedback.
         arguments: dict[str, Any] = {}
         raw_args = function.get("arguments")
         if isinstance(raw_args, dict):
@@ -74,10 +74,10 @@ def _parse_finish_reason(value: str | None) -> FinishReason:
 
 
 class OpenRouterProvider:
-    """Ruft ein Modell über OpenRouter auf.
+    """Calls a model through OpenRouter.
 
-    Der API-Key wird nur durchgereicht und nie gespeichert — die öffentliche Demo läuft
-    ohnehin über aufgezeichnete Läufe, nicht über echte Aufrufe.
+    The API key is only passed through and never stored — the public demo runs on recorded
+    runs anyway, not on live calls.
     """
 
     def __init__(
@@ -93,7 +93,7 @@ class OpenRouterProvider:
         title: str = "Agent Hive",
     ) -> None:
         if not api_key:
-            raise ProviderError("Kein OpenRouter-API-Key gesetzt (HIVE_OPENROUTER_API_KEY)")
+            raise ProviderError("No OpenRouter API key set (HIVE_OPENROUTER_API_KEY)")
         self.model_id = model_id
         self._url = url
         self._max_retries = max_retries
@@ -102,7 +102,7 @@ class OpenRouterProvider:
         self._headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            # OpenRouter nutzt diese beiden Felder für die Zuordnung in seinen Statistiken.
+            # OpenRouter uses these two fields for attribution in its statistics.
             "HTTP-Referer": referer,
             "X-Title": title,
         }
@@ -118,8 +118,8 @@ class OpenRouterProvider:
         body: dict[str, Any] = {
             "model": self.model_id,
             "messages": [_to_wire(m) for m in messages],
-            # Aktiviert die Kostenangabe in der Antwort. Gemeldete Kosten schlagen die
-            # eigene Rechnung, weil sie Rabatte und Cache-Treffer berücksichtigen.
+            # Enables the cost field in the response. Reported cost beats our own arithmetic
+            # because it accounts for discounts and cache hits.
             "usage": {"include": True},
         }
         if tools:
@@ -134,18 +134,18 @@ class OpenRouterProvider:
         return self._to_completion(payload)
 
     async def _post_with_retry(self, body: dict[str, Any]) -> dict[str, Any]:
-        last_error = "unbekannt"
+        last_error = "unknown"
         for attempt in range(self._max_retries):
             try:
                 response = await self._client.post(self._url, json=body, headers=self._headers)
             except httpx.HTTPError as exc:
-                last_error = f"Netzwerkfehler: {exc}"
+                last_error = f"Network error: {exc}"
             else:
                 if response.status_code < 400:
                     try:
                         return dict(response.json())
                     except ValueError as exc:
-                        raise ProviderError(f"Antwort ist kein JSON: {exc}") from exc
+                        raise ProviderError(f"Response is not JSON: {exc}") from exc
                 last_error = f"HTTP {response.status_code}: {response.text[:300]}"
                 if response.status_code not in RETRYABLE_STATUS:
                     raise ProviderError(last_error)
@@ -153,10 +153,10 @@ class OpenRouterProvider:
             if attempt < self._max_retries - 1:
                 await asyncio.sleep(2**attempt)
 
-        raise ProviderError(f"Nach {self._max_retries} Versuchen fehlgeschlagen — {last_error}")
+        raise ProviderError(f"Failed after {self._max_retries} attempts — {last_error}")
 
     def _to_completion(self, payload: dict[str, Any]) -> Completion:
-        # OpenRouter meldet Fehler teils mit HTTP 200 und einem "error"-Objekt im Body.
+        # OpenRouter sometimes reports errors with HTTP 200 and an "error" object in the body.
         if "error" in payload and not payload.get("choices"):
             error = payload["error"]
             detail = error.get("message") if isinstance(error, dict) else str(error)
@@ -164,7 +164,7 @@ class OpenRouterProvider:
 
         choices = payload.get("choices")
         if not isinstance(choices, list) or not choices:
-            raise ProviderError("Antwort ohne 'choices'")
+            raise ProviderError("Response without 'choices'")
 
         choice = choices[0]
         raw_message = choice.get("message") or {}

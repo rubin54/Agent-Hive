@@ -1,0 +1,70 @@
+version: 1
+
+prompt: >
+  Build a playable Minecraft clone in the browser using three.js.
+
+  The toolchain is already in place: package.json and vite.config.js are in the working
+  directory and three.js is listed as a dependency. Install the packages with `npm install`.
+
+  Requirements:
+  - index.html as the entry point, loading your script
+  - A voxel world made of blocks, visible in a 3D scene
+  - Movement with WASD, looking around with the mouse
+  - Breaking blocks (left click) and placing them (right click)
+  - The canvas element must carry the id "game" so the check can find it
+
+  `npm run build` must complete without errors.
+
+success_criteria:
+  - "npm run build completes without errors"
+  - "A 3D scene renders without console errors"
+  - "WASD changes the camera position"
+
+workspace:
+  starter_dir: starter
+  network: internal
+  # The model installs packages itself, so the agent phase needs internet.
+  # It is revoked again for the check phase.
+  agent_internet: true
+
+budget:
+  max_iterations: 40
+  max_tokens: 400000
+  max_wall_clock_seconds: 1800
+  max_cost_usd: "5.00"
+
+checks:
+  - kind: command
+    name: install
+    command: "npm install --no-fund --no-audit"
+    timeout_seconds: 600
+    needs_network: true
+
+  - kind: command
+    name: build
+    command: "npm run build"
+    timeout_seconds: 600
+
+  - kind: serve
+    name: serve
+    command: "npm run preview -- --host 0.0.0.0 --port 4173"
+    port: 4173
+    ready_timeout_seconds: 90
+
+  - kind: playwright
+    name: playability
+    spec: checks/game.spec.ts
+    port: 4173
+    timeout_seconds: 240
+    screenshots: 3
+
+rubric:
+  - id: playability
+    weight: 3
+    question: "Does a controllable 3D scene run without errors?"
+  - id: core-mechanic
+    weight: 3
+    question: "Can blocks be broken and placed?"
+  - id: craft
+    weight: 1
+    question: "Does the implementation look carefully made?"

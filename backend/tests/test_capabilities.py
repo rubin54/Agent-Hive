@@ -1,4 +1,4 @@
-"""Rollentauglichkeit — die Kernlogik von M0."""
+"""Role eligibility — the core logic of M0."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from .conftest import make_model
 
 
 def test_scout_role_needs_no_tools() -> None:
-    """Scouts planen in Text. Ein Modell ohne Tool-Calling bleibt scout-tauglich."""
+    """Scouts plan in text. A model without tool calling stays scout-eligible."""
     caps = derive_capabilities(make_model(tools=False))
     assert caps.roles == [Role.SCOUT]
     assert caps.ineligible_reason is not None
@@ -40,24 +40,24 @@ def test_free_model_detected() -> None:
 
 
 def test_unknown_price_is_not_free() -> None:
-    """Ein fehlender Preis ist unbekannt, nicht kostenlos.
+    """A missing price means unknown, not free.
 
-    Die Verwechslung wäre teuer: Ein Modell mit variablem Tarif würde sonst in jeden
-    Gratis-Filter rutschen und die Kostenschätzung unterlaufen.
+    Confusing the two would be expensive: a model on a variable rate would slip into every
+    free filter and undermine cost estimation.
     """
     caps = derive_capabilities(make_model(prompt=None, completion=None))
     assert not caps.is_free
 
 
 def test_negative_price_means_unknown() -> None:
-    """OpenRouter nutzt "-1" für variable Tarife."""
+    """OpenRouter uses "-1" for variable rates."""
     model = make_model(prompt="-1", completion="-1")
     assert model.pricing.prompt is None
     assert model.pricing.blended_per_mtok is None
 
 
 def test_pricing_stays_decimal() -> None:
-    """Preise werden nie über float gerechnet — sonst summieren sich Binärfehler."""
+    """Prices are never computed through float — binary errors would accumulate."""
     model = make_model(prompt="0.00000014", completion="0.00000028")
     assert isinstance(model.pricing.prompt, Decimal)
     assert model.pricing.prompt_per_mtok == Decimal("0.14")
@@ -66,7 +66,7 @@ def test_pricing_stays_decimal() -> None:
 
 
 def test_malformed_model_does_not_break_parsing() -> None:
-    """Fehlende Teilobjekte kommen in der echten Antwort vor."""
+    """Missing sub-objects do occur in the real response."""
     model = make_model()
     payload = model.model_dump()
     payload["architecture"] = None

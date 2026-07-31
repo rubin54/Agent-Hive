@@ -1,11 +1,11 @@
-"""Ableitung der Schwarm-Rollentauglichkeit aus den Katalogfeldern.
+"""Derives swarm role eligibility from catalog fields.
 
-Das ist die zentrale Domänenlogik von M0: Aus ``supported_parameters`` und
-``architecture.input_modalities`` folgt, für welche Rolle ein Modell überhaupt in Frage kommt.
+This is the core domain logic of M0: ``supported_parameters`` and
+``architecture.input_modalities`` determine which role a model can fill at all.
 
-Die Rollenteilung des Schwarms folgt einer realen Fähigkeitsgrenze, nicht einem Entwurfswunsch:
-Viele günstige Modelle beherrschen kein Tool-Calling. Statt sie auszuschließen, planen sie als
-Scouts in Text — ausführen mit Werkzeugen übernehmen Worker.
+The swarm's division of labour follows a real capability boundary, not a design preference:
+many cheap models cannot call tools. Rather than excluding them, they plan as scouts in text —
+workers do the execution with tools.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from enum import StrEnum
 
 from .models import OpenRouterModel
 
-# Werte in ``supported_parameters``, die Tool-Calling anzeigen.
+# Values in ``supported_parameters`` that indicate tool calling.
 TOOL_PARAMETERS = frozenset({"tools", "tool_choice"})
 STRUCTURED_OUTPUT_PARAMETERS = frozenset({"response_format", "structured_outputs"})
 IMAGE_MODALITIES = frozenset({"image"})
@@ -28,7 +28,7 @@ class Role(StrEnum):
 
 
 class Capabilities:
-    """Abgeleitete Fähigkeiten eines Modells."""
+    """Derived capabilities of a model."""
 
     __slots__ = ("is_free", "supports_structured_output", "supports_tools", "supports_vision")
 
@@ -47,12 +47,12 @@ class Capabilities:
 
     @property
     def roles(self) -> list[Role]:
-        """Rollen, für die das Modell technisch geeignet ist.
+        """Roles the model is technically eligible for.
 
-        Scout ist immer dabei: Scouts liefern Textpläne und brauchen keine Werkzeuge.
-        Worker und Queen greifen zu Werkzeugen, Inspectors müssen Screenshots sehen können.
-        Eignung heißt hier ausschließlich *technisch möglich* — ob ein Modell für eine Rolle
-        auch stark genug ist, beantwortet erst der Benchmark.
+        Scout is always included: scouts produce text plans and need no tools. Workers and
+        queens reach for tools, inspectors must be able to see screenshots. Eligibility here
+        means *technically possible* only — whether a model is also strong enough for a role
+        is what the benchmark answers.
         """
         roles = [Role.SCOUT]
         if self.supports_tools:
@@ -63,13 +63,13 @@ class Capabilities:
 
     @property
     def ineligible_reason(self) -> str | None:
-        """Warum das Modell keinen vollen Schwarm-Lauf fahren kann — oder ``None``.
+        """Why the model cannot run a full swarm — or ``None``.
 
-        Wird im Dashboard sichtbar angezeigt, statt solche Modelle stillschweigend
-        wegzufiltern: Wer wissen will, warum ein Modell fehlt, soll es sehen können.
+        Shown in the dashboard rather than filtering such models out silently: anyone
+        wondering why a model is missing should be able to see it.
         """
         if not self.supports_tools:
-            return "Kein Tool-Calling — nur als Scout einsetzbar"
+            return "No tool calling — usable as scout only"
         return None
 
 

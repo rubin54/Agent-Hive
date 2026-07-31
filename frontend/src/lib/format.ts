@@ -1,15 +1,15 @@
-/** Anzeigeformatierung. Rechnen passiert im Backend in Decimal — hier wird nur dargestellt. */
+/** Display formatting. Arithmetic happens in the backend in Decimal — this only renders. */
 
 /**
- * Preis pro Million Token.
+ * Price per million tokens.
  *
- * `null` heißt "unbekannt", nicht "kostenlos" — der Unterschied ist wichtig genug, um im
- * UI sichtbar zu bleiben. OpenRouter liefert für variable Tarife negative Werte, die das
- * Backend bereits zu `null` normalisiert.
+ * `null` means "unknown", not "free" — the difference matters enough to stay visible in the
+ * UI. OpenRouter returns negative values for variable rates, which the backend already
+ * normalises to `null`.
  */
 export function formatPricePerMTok(value: number | null): string {
-  if (value === null) return "unbekannt";
-  if (value === 0) return "gratis";
+  if (value === null) return "unknown";
+  if (value === 0) return "free";
   if (value < 0.01) return `$${value.toFixed(4)}`;
   if (value < 1) return `$${value.toFixed(3)}`;
   return `$${value.toFixed(2)}`;
@@ -28,7 +28,7 @@ export function formatContext(tokens: number | null): string {
 export function formatSyncedAt(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString("de-DE", {
+  return date.toLocaleString("en-GB", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

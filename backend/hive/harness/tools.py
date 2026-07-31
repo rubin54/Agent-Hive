@@ -1,12 +1,11 @@
-"""Werkzeug-Registry: JSON-Schema aus Typannotationen.
+"""Tool registry: JSON schema derived from type annotations.
 
-Der Ansatz ist bewusst schmal — kein Framework, sondern eine Ableitung des Schemas aus der
-Signatur. Damit gibt es genau eine Stelle, an der ein Werkzeug definiert ist: die Funktion.
+Deliberately narrow — no framework, just schema derivation from the signature. That leaves
+exactly one place where a tool is defined: the function itself.
 
-Zentrale Eigenschaft: **Werkzeugfehler sind Rückmeldung, kein Absturz.** Ein halluzinierter
-Werkzeugname oder ungültige Argumente werden dem Modell als Text zurückgegeben, damit es sich
-korrigieren kann. Nur so übersteht der Loop schwächere Modelle — und die sollen im Schwarm
-gerade die Mehrheit stellen.
+Central property: **tool failures are feedback, not crashes.** A hallucinated tool name or
+invalid arguments are handed back to the model as text so it can correct itself. That is the
+only way the loop survives weaker models — and those are meant to be the majority in a swarm.
 """
 
 from __future__ import annotations
@@ -21,11 +20,11 @@ ToolHandler = Callable[..., Awaitable[str]]
 
 
 class ToolError(Exception):
-    """Fachlicher Fehler eines Werkzeugs — wird dem Modell mitgeteilt, bricht den Lauf nicht ab."""
+    """A tool-level failure — reported to the model, does not abort the run."""
 
 
 class ToolSpec(BaseModel):
-    """Ein registriertes Werkzeug samt abgeleitetem Parameterschema."""
+    """A registered tool with its derived parameter schema."""
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -47,10 +46,10 @@ class ToolSpec(BaseModel):
 
 
 def _clean_schema(schema: dict[str, Any]) -> dict[str, Any]:
-    """Entfernt Pydantic-Beiwerk, das für Modelle nur Rauschen ist.
+    """Strip pydantic noise that carries no information for a model.
 
-    Die von ``model_json_schema`` erzeugten ``title``-Felder blähen den Prompt auf, ohne
-    Information zu tragen — bei vielen Werkzeugen summiert sich das über jeden Aufruf.
+    The ``title`` fields produced by ``model_json_schema`` inflate the prompt without adding
+    meaning — across many tools that adds up on every single call.
     """
     schema.pop("title", None)
     for prop in schema.get("properties", {}).values():
@@ -60,23 +59,23 @@ def _clean_schema(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 def tool_from_function(fn: ToolHandler, *, name: str | None = None) -> ToolSpec:
-    """Baut eine ``ToolSpec`` aus einer async-Funktion mit Typannotationen.
+    """Build a ``ToolSpec`` from an async function with type annotations.
 
-    Der Docstring wird zur Beschreibung — das Modell liest ihn, also ist er kein Kommentar,
-    sondern Teil der Schnittstelle.
+    The docstring becomes the description — the model reads it, so it is part of the
+    interface rather than a comment.
     """
     signature = inspect.signature(fn)
     fields: dict[str, Any] = {}
     for param_name, param in signature.parameters.items():
         if param.annotation is inspect.Parameter.empty:
-            raise TypeError(f"Werkzeug {fn.__name__}: Parameter '{param_name}' ohne Typannotation")
+            raise TypeError(f"Tool {fn.__name__}: parameter '{param_name}' has no type annotation")
         default = ... if param.default is inspect.Parameter.empty else param.default
         fields[param_name] = (param.annotation, default)
 
     argument_model = create_model(f"{fn.__name__}_args", **fields)
     description = inspect.getdoc(fn) or ""
     if not description:
-        raise ValueError(f"Werkzeug {fn.__name__} braucht einen Docstring — das Modell liest ihn")
+        raise ValueError(f"Tool {fn.__name__} needs a docstring — the model reads it")
 
     return ToolSpec(
         name=name or fn.__name__,
@@ -88,7 +87,7 @@ def tool_from_function(fn: ToolHandler, *, name: str | None = None) -> ToolSpec:
 
 
 class ToolRegistry:
-    """Sammlung verfügbarer Werkzeuge für einen Agenten."""
+    """The set of tools available to an agent."""
 
     def __init__(self, specs: list[ToolSpec] | None = None) -> None:
         self._specs: dict[str, ToolSpec] = {}
@@ -97,7 +96,7 @@ class ToolRegistry:
 
     def register(self, spec: ToolSpec) -> None:
         if spec.name in self._specs:
-            raise ValueError(f"Werkzeug '{spec.name}' ist bereits registriert")
+            raise ValueError(f"Tool '{spec.name}' is already registered")
         self._specs[spec.name] = spec
 
     def add_function(self, fn: ToolHandler, *, name: str | None = None) -> None:
@@ -108,39 +107,39 @@ class ToolRegistry:
         return sorted(self._specs)
 
     def subset(self, names: list[str]) -> ToolRegistry:
-        """Teilmenge für eine Rolle — Scouts bekommen nur lesende Werkzeuge."""
+        """Subset for a role — scouts only get read-only tools."""
         missing = [n for n in names if n not in self._specs]
         if missing:
-            raise KeyError(f"Unbekannte Werkzeuge: {', '.join(missing)}")
+            raise KeyError(f"Unknown tools: {', '.join(missing)}")
         return ToolRegistry([self._specs[n] for n in names])
 
     def as_openai_schema(self) -> list[dict[str, Any]]:
         return [self._specs[name].as_openai_schema() for name in self.names]
 
     async def invoke(self, name: str, arguments: dict[str, Any]) -> tuple[str, bool]:
-        """Führt ein Werkzeug aus.
+        """Execute a tool.
 
-        Gibt ``(ergebnis, erfolgreich)`` zurück. Bei Fehlern steht im Ergebnis eine für das
-        Modell lesbare Erklärung — inklusive der Liste verfügbarer Werkzeuge, wenn der Name
-        nicht existiert.
+        Returns ``(result, succeeded)``. On failure the result carries an explanation the
+        model can act on — including the list of available tools when the name is unknown.
         """
         spec = self._specs.get(name)
         if spec is None:
             return (
-                f"Fehler: Werkzeug '{name}' existiert nicht. Verfügbar: {', '.join(self.names)}",
+                f"Error: tool '{name}' does not exist. Available: {', '.join(self.names)}",
                 False,
             )
 
         try:
             validated = spec.argument_model.model_validate(arguments)
         except ValidationError as exc:
-            return (f"Fehler: ungültige Argumente für '{name}'.\n{exc}", False)
+            return (f"Error: invalid arguments for '{name}'.\n{exc}", False)
 
         try:
             result = await spec.handler(**validated.model_dump())
         except ToolError as exc:
-            return (f"Fehler: {exc}", False)
+            return (f"Error: {exc}", False)
         except Exception as exc:
-            return (f"Fehler bei '{name}': {type(exc).__name__}: {exc}", False)
+            # A tool must never take down the whole run — the model gets the error as text.
+            return (f"Error in '{name}': {type(exc).__name__}: {exc}", False)
 
         return (result, True)
