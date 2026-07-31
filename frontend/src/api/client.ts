@@ -1,4 +1,13 @@
-import type { CatalogPage, CatalogQuery, CatalogStatus, ProviderFacet } from "./types";
+import type {
+  CatalogPage,
+  CatalogQuery,
+  CatalogStatus,
+  EventPage,
+  ProviderFacet,
+  RunSummary,
+  StartRunRequest,
+  TemplateSummary,
+} from "./types";
 
 const API_BASE = "/api";
 
@@ -28,6 +37,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+function postJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 function toSearchParams(query: CatalogQuery): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
@@ -40,11 +57,33 @@ function toSearchParams(query: CatalogQuery): string {
   return encoded ? `?${encoded}` : "";
 }
 
+/**
+ * WebSocket URL for a run's live stream.
+ *
+ * `after` resumes where a dropped connection left off, so a reconnect neither replays
+ * everything nor skips what was missed.
+ */
+export function runStreamUrl(runId: string, after: number): string {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}${API_BASE}/runs/${runId}/stream?after=${after}`;
+}
+
+export function screenshotUrl(runId: string, name: string): string {
+  return `${API_BASE}/runs/${runId}/screenshots/${name}`;
+}
+
 export const api = {
   status: () => request<CatalogStatus>("/catalog/status"),
   providers: () => request<ProviderFacet[]>("/catalog/providers"),
   models: (query: CatalogQuery) => request<CatalogPage>(`/catalog/models${toSearchParams(query)}`),
-  sync: () => request<{ snapshot_id: string; model_count: number }>("/catalog/sync", {
-    method: "POST",
-  }),
+  sync: () =>
+    request<{ snapshot_id: string; model_count: number }>("/catalog/sync", { method: "POST" }),
+
+  templates: () => request<TemplateSummary[]>("/templates"),
+
+  runs: () => request<RunSummary[]>("/runs"),
+  run: (runId: string) => request<RunSummary>(`/runs/${runId}`),
+  runEvents: (runId: string, after = -1) =>
+    request<EventPage>(`/runs/${runId}/events?after=${after}`),
+  startRun: (body: StartRunRequest) => postJson<RunSummary>("/runs", body),
 };

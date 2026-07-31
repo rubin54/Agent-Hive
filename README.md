@@ -21,7 +21,8 @@ The full plan with methodology and milestones lives in [PLAN.md](PLAN.md).
 | **M0** | Model catalog: OpenRouter sync, role derivation, dashboard with filters | done |
 | **M1** | Harness: agent loop, tool registry, budget, providers, Docker sandbox | done |
 | **M2** | Versioned task templates, mechanical checks, Playwright, screenshots | done |
-| M3–M9 | Journal, sweeps, swarm engine, scoring — see [PLAN.md](PLAN.md) | open |
+| **M3** | Event journal, WebSocket stream, run list and live single-run view | done |
+| M4–M9 | Sweeps, swarm engine, scoring — see [PLAN.md](PLAN.md) | open |
 
 **Usable without an API key:** the OpenRouter model endpoint is public, a catalog snapshot
 ships with the repository, and the example runs use a recorded mock provider.
@@ -99,6 +100,30 @@ execution with tools.
 The dashboard derives eligibility from `supported_parameters` and
 `architecture.input_modalities`. Models that cannot run a full swarm are shown **dimmed with a
 reason** rather than filtered out silently.
+
+## Watching a run
+
+Start the backend and frontend, open the **Runs** tab, pick a template and press *Start run*.
+The event stream fills in as the agent works: every tool call, every result, tokens and cost
+per model call. When the run ends the checks and screenshots appear beneath it.
+
+The stream is the journal. Every state transition is appended to `data/runs/<id>/journal.jsonl`
+and pushed to subscribers in the same step — there is no separate code path for the live view,
+which is what makes watching and replaying the same thing. Opening a finished run replays it
+from disk through the same WebSocket endpoint.
+
+Two details that took care to get right:
+
+- **Late joiners.** A browser connecting mid-run subscribes *before* the snapshot is taken and
+  then drops already-seen sequence numbers. Snapshot-then-subscribe would silently lose
+  everything emitted in between; a gap in an event stream is invisible and unrecoverable.
+- **Backpressure.** Each subscriber has a bounded queue. A client that stops reading is
+  disconnected rather than allowed to grow it — silently missing events would render an
+  incomplete run as complete.
+
+Runs execute inside the API process. That is the right trade for a single-user tool, and the
+consequence is handled rather than hidden: a run whose metadata says `running` but which has
+no live task is reported as `abandoned` on the next read.
 
 ## Task templates
 
@@ -203,7 +228,7 @@ cannot return.
 make check
 ```
 
-Runs lint, typecheck and tests for both sides: `ruff`, `mypy --strict`, `pytest` (121 tests),
+Runs lint, typecheck and tests for both sides: `ruff`, `mypy --strict`, `pytest` (154 tests),
 `tsc --noEmit`, `vitest`. The fast part runs **without network and without a key** — HTTP is
 intercepted with `respx`, the catalog comes from the fixture. Container tests skip themselves
 when no Docker daemon is reachable.
@@ -215,13 +240,16 @@ backend/hive/
   sandbox/     Docker container, network modes, workspace tools
   templates/   versioned task definitions, loading and validation
   checks/      command, serve and Playwright checks
-  api/         FastAPI REST endpoints
+  journal/     append-only event store, live registry, sink
+  runs/        starting, tracking and reading runs
+  api/         FastAPI REST endpoints and the WebSocket stream
   cli.py       hive catalog | template | run | openapi
 docker/        sandbox image and checker image
 templates/     counter-page, minecraft-clone
 frontend/src/
   api/         client and types
   features/catalog/   tile grid, filters, detail panel
+  features/runs/      run list, live single-run view, event stream
   lib/         display formatting
 ```
 

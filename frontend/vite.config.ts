@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: apiTarget,
           changeOrigin: true,
+          // ws: the live run view speaks WebSocket over the same /api prefix. Without this
+          // the upgrade request is proxied as plain HTTP and the stream never connects.
+          ws: true,
         },
       },
     },

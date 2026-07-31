@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol
 
 from ..catalog.models import Pricing
 from ..catalog.service import CatalogService, CatalogUnavailableError
@@ -24,6 +24,18 @@ from .agent import DEFAULT_SYSTEM_PROMPT, Agent, AgentResult
 from .budget import BudgetLimits, BudgetTracker
 from .events import Event, MemorySink
 from .providers.base import Provider
+
+
+class RecordingSink(Protocol):
+    """An event sink that also keeps what it recorded.
+
+    ``MemorySink`` and the journal sink both satisfy this — the runner needs the collected
+    events for its outcome regardless of whether they were persisted.
+    """
+
+    events: list[Event]
+
+    def emit(self, event: Event) -> None: ...
 
 
 @dataclass(slots=True)
@@ -106,10 +118,16 @@ async def execute_run(
     templates: TemplateStore | None = None,
     screenshot_dir: Path | None = None,
     run_id: str | None = None,
+    sink: RecordingSink | None = None,
 ) -> RunOutcome:
-    """Execute a run in a fresh sandbox and tear it down afterwards."""
+    """Execute a run in a fresh sandbox and tear it down afterwards.
+
+    ``sink`` lets the caller substitute the recorder — the journal sink additionally persists
+    and broadcasts. The agent loop is unaware of the difference; it only calls ``emit``.
+    """
     identifier = run_id or uuid.uuid4().hex[:12]
-    sink = MemorySink(run_id=identifier)
+    if sink is None:
+        sink = MemorySink(run_id=identifier)
 
     pricing = pricing_for(catalog, config.model_id) if catalog else None
     tracker = BudgetTracker(limits=config.budget, pricing=pricing)

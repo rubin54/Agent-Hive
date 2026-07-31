@@ -47,14 +47,11 @@ export function CatalogPage() {
   }, [status.data]);
 
   return (
-    <div className="page">
+    <>
       <header className="topbar">
         <div className="topbar__brand">
-          <span className="topbar__mark" aria-hidden="true">
-            ⬢
-          </span>
           <div>
-            <h1>Agent Hive</h1>
+            <h1>Model catalog</h1>
             <p className="topbar__sub">{headline ?? "Loading model catalog …"}</p>
           </div>
         </div>
@@ -142,6 +139,6 @@ export function CatalogPage() {
 
         {selected && <ModelDetail model={selected} onClose={() => setSelected(null)} />}
       </div>
-    </div>
+    </>
   );
 }

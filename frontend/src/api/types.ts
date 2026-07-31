@@ -55,6 +55,86 @@ export interface ProviderFacet {
   count: number;
 }
 
+export type RunStatus = "running" | "completed" | "failed";
+
+export type EventType =
+  | "run_started"
+  | "iteration_started"
+  | "model_called"
+  | "model_responded"
+  | "tool_called"
+  | "tool_returned"
+  | "run_finished";
+
+export interface RunEvent {
+  type: EventType;
+  sequence: number;
+  run_id: string;
+  payload: Record<string, unknown>;
+}
+
+export interface CheckSummary {
+  name: string;
+  passed: boolean;
+  required: boolean;
+  duration_seconds: number;
+  detail: string;
+}
+
+export interface RunSummary {
+  run_id: string;
+  model_id: string;
+  status: RunStatus;
+  started_at: string;
+  finished_at: string | null;
+  goal: string;
+  template_ref: string | null;
+  template_hash: string | null;
+  provider: string;
+
+  iterations: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  /** A string, not a number — costs are Decimal in the backend and a float would undo that. */
+  cost_usd: string;
+  pricing_known: boolean;
+
+  stop_reason: string | null;
+  detail: string | null;
+  checks_passed: boolean | null;
+  check_summary: CheckSummary[];
+  screenshots: string[];
+  workspace: string;
+  live: boolean;
+}
+
+export interface EventPage {
+  run_id: string;
+  events: RunEvent[];
+  live: boolean;
+}
+
+export interface TemplateSummary {
+  name: string;
+  version: number;
+  ref: string;
+  content_hash: string;
+  prompt: string;
+  checks: string[];
+  network: string;
+  max_iterations: number;
+  error: string | null;
+}
+
+export interface StartRunRequest {
+  model_id: string;
+  template_name?: string;
+  goal?: string;
+  provider: "openrouter" | "mock";
+  api_key?: string;
+}
+
 export interface CatalogQuery {
   search?: string;
   provider?: string;

@@ -44,6 +44,11 @@ class Settings(BaseSettings):
         return self.data_dir / "screenshots"
 
     @property
+    def runs_dir(self) -> Path:
+        """One directory per run: metadata plus the append-only event journal."""
+        return self.data_dir / "runs"
+
+    @property
     def fixture_path(self) -> Path:
         """Bundled snapshot so the demo runs without network and without a key."""
         return Path(__file__).resolve().parent / "catalog" / "fixture.json"

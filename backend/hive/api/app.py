@@ -10,7 +10,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import get_settings
-from .routes import catalog
+from .routes import catalog, runs, templates
 
 API_PREFIX = "/api"
 
@@ -38,6 +38,8 @@ def create_app() -> FastAPI:
         return {"status": "ok", "version": app.version}
 
     api.include_router(catalog.router)
+    api.include_router(templates.router)
+    api.include_router(runs.router)
     app.include_router(api)
     return app
 
