@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.pytest_tmp/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Lokale Konfiguration
+.env
+.env.local
+.env.*.local
+
+# Katalog-Snapshots: laufzeitgeneriert. Der mitgelieferte Demo-Stand liegt
+# stattdessen unter backend/hive/catalog/fixture.json und ist versioniert.
+data/
+
+# Generiert
+openapi.json
+frontend/src/api/schema.d.ts
+
+# Werkzeuge
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
